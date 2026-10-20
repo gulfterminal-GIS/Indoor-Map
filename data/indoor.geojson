@@ -1,0 +1,6293 @@
+{
+  "type": "FeatureCollection",
+  "name": "Terminal Campus",
+  "origin": {
+    "lon": 31.41638291,
+    "lat": 30.70093489
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "id": "level-l0",
+      "properties": {
+        "feature_type": "level",
+        "name": "Ground",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41640381,
+              30.70095298
+            ],
+            [
+              31.41728138,
+              30.70095298
+            ],
+            [
+              31.41728138,
+              30.7014234
+            ],
+            [
+              31.41640381,
+              30.7014234
+            ],
+            [
+              31.41640381,
+              30.70095298
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l0-corridor",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Main Corridor",
+        "category": "corridor",
+        "anchor": [
+          44,
+          34
+        ],
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal",
+        "summary": "East–west corridor linking every room, the stair, and the elevator."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41642471,
+              30.70120628
+            ],
+            [
+              31.41726048,
+              30.70120628
+            ],
+            [
+              31.41726048,
+              30.70127866
+            ],
+            [
+              31.41642471,
+              30.70127866
+            ],
+            [
+              31.41642471,
+              30.70120628
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l0-elevator",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Elevator A",
+        "category": "elevator",
+        "anchor": [
+          77,
+          24
+        ],
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal",
+        "transition_group": "E1",
+        "transition_kind": "elevator"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41711423,
+              30.70109773
+            ],
+            [
+              31.41726048,
+              30.70109773
+            ],
+            [
+              31.41726048,
+              30.70120628
+            ],
+            [
+              31.41711423,
+              30.70120628
+            ],
+            [
+              31.41711423,
+              30.70109773
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l0-stair",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Stair A",
+        "category": "stair",
+        "anchor": [
+          77,
+          44
+        ],
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal",
+        "transition_group": "S1",
+        "transition_kind": "stair"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41711423,
+              30.70127866
+            ],
+            [
+              31.41726048,
+              30.70127866
+            ],
+            [
+              31.41726048,
+              30.70138721
+            ],
+            [
+              31.41711423,
+              30.70138721
+            ],
+            [
+              31.41711423,
+              30.70127866
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l0-main-hall",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Main Hall",
+        "category": "hall",
+        "anchor": [
+          20,
+          18
+        ],
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal",
+        "summary": "Public arrival hall.",
+        "pano": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41642471,
+              30.70098917
+            ],
+            [
+              31.41675902,
+              30.70098917
+            ],
+            [
+              31.41675902,
+              30.70120628
+            ],
+            [
+              31.41642471,
+              30.70120628
+            ],
+            [
+              31.41642471,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l0-workshop",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Workshop",
+        "category": "room",
+        "anchor": [
+          41,
+          18
+        ],
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal",
+        "summary": "Maintenance workshop."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41675902,
+              30.70098917
+            ],
+            [
+              31.4168635,
+              30.70098917
+            ],
+            [
+              31.4168635,
+              30.70120628
+            ],
+            [
+              31.41675902,
+              30.70120628
+            ],
+            [
+              31.41675902,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l0-restroom",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Restroom",
+        "category": "restroom",
+        "anchor": [
+          50,
+          18
+        ],
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal",
+        "summary": "Restroom."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.4168635,
+              30.70098917
+            ],
+            [
+              31.41694707,
+              30.70098917
+            ],
+            [
+              31.41694707,
+              30.70120628
+            ],
+            [
+              31.4168635,
+              30.70120628
+            ],
+            [
+              31.4168635,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l0-control",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Control Room",
+        "category": "room",
+        "anchor": [
+          58,
+          18
+        ],
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal",
+        "summary": "Operations control room.",
+        "pano": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41694707,
+              30.70098917
+            ],
+            [
+              31.41703064,
+              30.70098917
+            ],
+            [
+              31.41703064,
+              30.70120628
+            ],
+            [
+              31.41694707,
+              30.70120628
+            ],
+            [
+              31.41694707,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l0-store",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Store",
+        "category": "room",
+        "anchor": [
+          66,
+          18
+        ],
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal",
+        "summary": "Parts store."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41703064,
+              30.70098917
+            ],
+            [
+              31.41711423,
+              30.70098917
+            ],
+            [
+              31.41711423,
+              30.70120628
+            ],
+            [
+              31.41703064,
+              30.70120628
+            ],
+            [
+              31.41703064,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l0-plant",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Plant Room",
+        "category": "room",
+        "anchor": [
+          77,
+          12
+        ],
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal",
+        "summary": "Mechanical plant, reached through the elevator lobby."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41711423,
+              30.70098917
+            ],
+            [
+              31.41726048,
+              30.70098917
+            ],
+            [
+              31.41726048,
+              30.70109773
+            ],
+            [
+              31.41711423,
+              30.70109773
+            ],
+            [
+              31.41711423,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l0-atrium",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Atrium",
+        "category": "hall",
+        "anchor": [
+          20,
+          44
+        ],
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal",
+        "summary": "North atrium."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41642471,
+              30.70127866
+            ],
+            [
+              31.41675902,
+              30.70127866
+            ],
+            [
+              31.41675902,
+              30.70138721
+            ],
+            [
+              31.41642471,
+              30.70138721
+            ],
+            [
+              31.41642471,
+              30.70127866
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l0-planning",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Planning Room",
+        "category": "room",
+        "anchor": [
+          53,
+          44
+        ],
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal",
+        "summary": "Planning office."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41675902,
+              30.70127866
+            ],
+            [
+              31.41711423,
+              30.70127866
+            ],
+            [
+              31.41711423,
+              30.70138721
+            ],
+            [
+              31.41675902,
+              30.70138721
+            ],
+            [
+              31.41675902,
+              30.70127866
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l0-0",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Main Corridor",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.4164038047492,
+            30.701242470966164
+          ],
+          [
+            31.416591857492016,
+            30.701242470966164
+          ],
+          [
+            31.416811252358634,
+            30.701242470966164
+          ],
+          [
+            31.41690527873004,
+            30.701242470966164
+          ],
+          [
+            31.416936620853846,
+            30.701242470966164
+          ],
+          [
+            31.41698885772685,
+            30.701242470966164
+          ],
+          [
+            31.417072436723657,
+            30.701242470966164
+          ],
+          [
+            31.417187357844266,
+            30.701242470966164
+          ],
+          [
+            31.417281384215674,
+            30.701242470966164
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l0-1",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41718736,
+            30.70124247
+          ],
+          [
+            31.41718736,
+            30.70115201
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l0-2",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41718736,
+            30.70124247
+          ],
+          [
+            31.41718736,
+            30.70133294
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l0-3",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41659185,
+            30.70124247
+          ],
+          [
+            31.41659185,
+            30.70109773
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l0-4",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41681125,
+            30.70124247
+          ],
+          [
+            31.41681125,
+            30.70109773
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l0-5",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41690528,
+            30.70124247
+          ],
+          [
+            31.41690528,
+            30.70109773
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l0-6",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41698886,
+            30.70124247
+          ],
+          [
+            31.41698886,
+            30.70109773
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l0-7",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41707244,
+            30.70124247
+          ],
+          [
+            31.41707244,
+            30.70109773
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l0-8",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41718736,
+            30.70115201
+          ],
+          [
+            31.41718736,
+            30.70104345
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l0-9",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41659185,
+            30.70124247
+          ],
+          [
+            31.41659185,
+            30.70133294
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l0-10",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41693662,
+            30.70124247
+          ],
+          [
+            31.41693662,
+            30.70133294
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "level-l1",
+      "properties": {
+        "feature_type": "level",
+        "name": "Level 1",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41640381,
+              30.70095298
+            ],
+            [
+              31.41728138,
+              30.70095298
+            ],
+            [
+              31.41728138,
+              30.7014234
+            ],
+            [
+              31.41640381,
+              30.7014234
+            ],
+            [
+              31.41640381,
+              30.70095298
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l1-corridor",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Main Corridor",
+        "category": "corridor",
+        "anchor": [
+          44,
+          34
+        ],
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal",
+        "summary": "East–west corridor linking every room, the stair, and the elevator."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41642471,
+              30.70120628
+            ],
+            [
+              31.41726048,
+              30.70120628
+            ],
+            [
+              31.41726048,
+              30.70127866
+            ],
+            [
+              31.41642471,
+              30.70127866
+            ],
+            [
+              31.41642471,
+              30.70120628
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l1-elevator",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Elevator A",
+        "category": "elevator",
+        "anchor": [
+          77,
+          24
+        ],
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal",
+        "transition_group": "E1",
+        "transition_kind": "elevator"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41711423,
+              30.70109773
+            ],
+            [
+              31.41726048,
+              30.70109773
+            ],
+            [
+              31.41726048,
+              30.70120628
+            ],
+            [
+              31.41711423,
+              30.70120628
+            ],
+            [
+              31.41711423,
+              30.70109773
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l1-stair",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Stair A",
+        "category": "stair",
+        "anchor": [
+          77,
+          44
+        ],
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal",
+        "transition_group": "S1",
+        "transition_kind": "stair"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41711423,
+              30.70127866
+            ],
+            [
+              31.41726048,
+              30.70127866
+            ],
+            [
+              31.41726048,
+              30.70138721
+            ],
+            [
+              31.41711423,
+              30.70138721
+            ],
+            [
+              31.41711423,
+              30.70127866
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l1-archive",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Archive",
+        "category": "room",
+        "anchor": [
+          20,
+          18
+        ],
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal",
+        "summary": "Document archive."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41642471,
+              30.70098917
+            ],
+            [
+              31.41675902,
+              30.70098917
+            ],
+            [
+              31.41675902,
+              30.70120628
+            ],
+            [
+              31.41642471,
+              30.70120628
+            ],
+            [
+              31.41642471,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l1-briefing",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Briefing Room",
+        "category": "room",
+        "anchor": [
+          41,
+          18
+        ],
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal",
+        "summary": "Briefing room."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41675902,
+              30.70098917
+            ],
+            [
+              31.4168635,
+              30.70098917
+            ],
+            [
+              31.4168635,
+              30.70120628
+            ],
+            [
+              31.41675902,
+              30.70120628
+            ],
+            [
+              31.41675902,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l1-restroom",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Restroom",
+        "category": "restroom",
+        "anchor": [
+          50,
+          18
+        ],
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal",
+        "summary": "Restroom."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.4168635,
+              30.70098917
+            ],
+            [
+              31.41694707,
+              30.70098917
+            ],
+            [
+              31.41694707,
+              30.70120628
+            ],
+            [
+              31.4168635,
+              30.70120628
+            ],
+            [
+              31.4168635,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l1-meeting",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Meeting Room",
+        "category": "room",
+        "anchor": [
+          58,
+          18
+        ],
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal",
+        "summary": "Meeting room."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41694707,
+              30.70098917
+            ],
+            [
+              31.41703064,
+              30.70098917
+            ],
+            [
+              31.41703064,
+              30.70120628
+            ],
+            [
+              31.41694707,
+              30.70120628
+            ],
+            [
+              31.41694707,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l1-print",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Print Room",
+        "category": "room",
+        "anchor": [
+          66,
+          18
+        ],
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal",
+        "summary": "Print room."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41703064,
+              30.70098917
+            ],
+            [
+              31.41711423,
+              30.70098917
+            ],
+            [
+              31.41711423,
+              30.70120628
+            ],
+            [
+              31.41703064,
+              30.70120628
+            ],
+            [
+              31.41703064,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l1-electrical",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Electrical Room",
+        "category": "room",
+        "anchor": [
+          77,
+          12
+        ],
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal",
+        "summary": "Electrical room, reached through the elevator lobby."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41711423,
+              30.70098917
+            ],
+            [
+              31.41726048,
+              30.70098917
+            ],
+            [
+              31.41726048,
+              30.70109773
+            ],
+            [
+              31.41711423,
+              30.70109773
+            ],
+            [
+              31.41711423,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l1-systems",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Systems Room",
+        "category": "room",
+        "anchor": [
+          16,
+          44
+        ],
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal",
+        "summary": "Building systems room."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41642471,
+              30.70127866
+            ],
+            [
+              31.41667544,
+              30.70127866
+            ],
+            [
+              31.41667544,
+              30.70138721
+            ],
+            [
+              31.41642471,
+              30.70138721
+            ],
+            [
+              31.41642471,
+              30.70127866
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l1-server-hall",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Server Hall",
+        "category": "hall",
+        "anchor": [
+          49,
+          44
+        ],
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal",
+        "summary": "Server hall.",
+        "pano": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41667544,
+              30.70127866
+            ],
+            [
+              31.41711423,
+              30.70127866
+            ],
+            [
+              31.41711423,
+              30.70138721
+            ],
+            [
+              31.41667544,
+              30.70138721
+            ],
+            [
+              31.41667544,
+              30.70127866
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l1-0",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Main Corridor",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41646649,
+            30.70124247
+          ],
+          [
+            31.41655008,
+            30.70124247
+          ],
+          [
+            31.41659185,
+            30.70124247
+          ],
+          [
+            31.41681125,
+            30.70124247
+          ],
+          [
+            31.41689484,
+            30.70124247
+          ],
+          [
+            31.41690528,
+            30.70124247
+          ],
+          [
+            31.41698886,
+            30.70124247
+          ],
+          [
+            31.41707244,
+            30.70124247
+          ],
+          [
+            31.41718736,
+            30.70124247
+          ],
+          [
+            31.41721871,
+            30.70124247
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l1-1",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41718736,
+            30.70124247
+          ],
+          [
+            31.41718736,
+            30.70115201
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l1-2",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41718736,
+            30.70124247
+          ],
+          [
+            31.41718736,
+            30.70133294
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l1-3",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41659185,
+            30.70124247
+          ],
+          [
+            31.41659185,
+            30.70109773
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l1-4",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41681125,
+            30.70124247
+          ],
+          [
+            31.41681125,
+            30.70109773
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l1-5",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41690528,
+            30.70124247
+          ],
+          [
+            31.41690528,
+            30.70109773
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l1-6",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41698886,
+            30.70124247
+          ],
+          [
+            31.41698886,
+            30.70109773
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l1-7",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41707244,
+            30.70124247
+          ],
+          [
+            31.41707244,
+            30.70109773
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l1-8",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41718736,
+            30.70115201
+          ],
+          [
+            31.41718736,
+            30.70104345
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l1-9",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41655008,
+            30.70124247
+          ],
+          [
+            31.41655008,
+            30.70133294
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l1-10",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41689484,
+            30.70124247
+          ],
+          [
+            31.41689484,
+            30.70133294
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "level-l2",
+      "properties": {
+        "feature_type": "level",
+        "name": "Level 2",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41640381,
+              30.70095298
+            ],
+            [
+              31.41728138,
+              30.70095298
+            ],
+            [
+              31.41728138,
+              30.7014234
+            ],
+            [
+              31.41640381,
+              30.7014234
+            ],
+            [
+              31.41640381,
+              30.70095298
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l2-corridor",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Main Corridor",
+        "category": "corridor",
+        "anchor": [
+          44,
+          34
+        ],
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal",
+        "summary": "East–west corridor linking every room, the stair, and the elevator."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41642471,
+              30.70120628
+            ],
+            [
+              31.41726048,
+              30.70120628
+            ],
+            [
+              31.41726048,
+              30.70127866
+            ],
+            [
+              31.41642471,
+              30.70127866
+            ],
+            [
+              31.41642471,
+              30.70120628
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l2-elevator",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Elevator A",
+        "category": "elevator",
+        "anchor": [
+          77,
+          24
+        ],
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal",
+        "transition_group": "E1",
+        "transition_kind": "elevator"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41711423,
+              30.70109773
+            ],
+            [
+              31.41726048,
+              30.70109773
+            ],
+            [
+              31.41726048,
+              30.70120628
+            ],
+            [
+              31.41711423,
+              30.70120628
+            ],
+            [
+              31.41711423,
+              30.70109773
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l2-stair",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Stair A",
+        "category": "stair",
+        "anchor": [
+          77,
+          44
+        ],
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal",
+        "transition_group": "S1",
+        "transition_kind": "stair"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41711423,
+              30.70127866
+            ],
+            [
+              31.41726048,
+              30.70127866
+            ],
+            [
+              31.41726048,
+              30.70138721
+            ],
+            [
+              31.41711423,
+              30.70138721
+            ],
+            [
+              31.41711423,
+              30.70127866
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l2-gallery",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Gallery",
+        "category": "hall",
+        "anchor": [
+          20,
+          18
+        ],
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal",
+        "summary": "Gallery."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41642471,
+              30.70098917
+            ],
+            [
+              31.41675902,
+              30.70098917
+            ],
+            [
+              31.41675902,
+              30.70120628
+            ],
+            [
+              31.41642471,
+              30.70120628
+            ],
+            [
+              31.41642471,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l2-records",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Records Room",
+        "category": "room",
+        "anchor": [
+          45,
+          18
+        ],
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal",
+        "summary": "Records room."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41675902,
+              30.70098917
+            ],
+            [
+              31.41694707,
+              30.70098917
+            ],
+            [
+              31.41694707,
+              30.70120628
+            ],
+            [
+              31.41675902,
+              30.70120628
+            ],
+            [
+              31.41675902,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l2-restroom",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Restroom",
+        "category": "restroom",
+        "anchor": [
+          58,
+          18
+        ],
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal",
+        "summary": "Restroom."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41694707,
+              30.70098917
+            ],
+            [
+              31.41703064,
+              30.70098917
+            ],
+            [
+              31.41703064,
+              30.70120628
+            ],
+            [
+              31.41694707,
+              30.70120628
+            ],
+            [
+              31.41694707,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l2-office",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Office",
+        "category": "room",
+        "anchor": [
+          66,
+          18
+        ],
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal",
+        "summary": "Office."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41703064,
+              30.70098917
+            ],
+            [
+              31.41711423,
+              30.70098917
+            ],
+            [
+              31.41711423,
+              30.70120628
+            ],
+            [
+              31.41703064,
+              30.70120628
+            ],
+            [
+              31.41703064,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l2-telecom",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Telecom Room",
+        "category": "room",
+        "anchor": [
+          77,
+          12
+        ],
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal",
+        "summary": "Telecom room, reached through the elevator lobby."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41711423,
+              30.70098917
+            ],
+            [
+              31.41726048,
+              30.70098917
+            ],
+            [
+              31.41726048,
+              30.70109773
+            ],
+            [
+              31.41711423,
+              30.70109773
+            ],
+            [
+              31.41711423,
+              30.70098917
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l2-executive",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Executive Hall",
+        "category": "hall",
+        "anchor": [
+          22,
+          44
+        ],
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal",
+        "summary": "Executive hall."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41642471,
+              30.70127866
+            ],
+            [
+              31.41680081,
+              30.70127866
+            ],
+            [
+              31.41680081,
+              30.70138721
+            ],
+            [
+              31.41642471,
+              30.70138721
+            ],
+            [
+              31.41642471,
+              30.70127866
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "u-l2-board",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Board Room",
+        "category": "room",
+        "anchor": [
+          55,
+          44
+        ],
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal",
+        "summary": "Board room.",
+        "pano": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41680081,
+              30.70127866
+            ],
+            [
+              31.41711423,
+              30.70127866
+            ],
+            [
+              31.41711423,
+              30.70138721
+            ],
+            [
+              31.41680081,
+              30.70138721
+            ],
+            [
+              31.41680081,
+              30.70127866
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l2-0",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Main Corridor",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41646649,
+            30.70124247
+          ],
+          [
+            31.41659185,
+            30.70124247
+          ],
+          [
+            31.41661275,
+            30.70124247
+          ],
+          [
+            31.41685304,
+            30.70124247
+          ],
+          [
+            31.41695752,
+            30.70124247
+          ],
+          [
+            31.41698886,
+            30.70124247
+          ],
+          [
+            31.41707244,
+            30.70124247
+          ],
+          [
+            31.41718736,
+            30.70124247
+          ],
+          [
+            31.41721871,
+            30.70124247
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l2-1",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41718736,
+            30.70124247
+          ],
+          [
+            31.41718736,
+            30.70115201
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l2-2",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41718736,
+            30.70124247
+          ],
+          [
+            31.41718736,
+            30.70133294
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l2-3",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41659185,
+            30.70124247
+          ],
+          [
+            31.41659185,
+            30.70109773
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l2-4",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41685304,
+            30.70124247
+          ],
+          [
+            31.41685304,
+            30.70109773
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l2-5",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41698886,
+            30.70124247
+          ],
+          [
+            31.41698886,
+            30.70109773
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l2-6",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41707244,
+            30.70124247
+          ],
+          [
+            31.41707244,
+            30.70109773
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l2-7",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41718736,
+            30.70115201
+          ],
+          [
+            31.41718736,
+            30.70104345
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l2-8",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41661275,
+            30.70124247
+          ],
+          [
+            31.41661275,
+            30.70133294
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "p-l2-9",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Terminal"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41695752,
+            30.70124247
+          ],
+          [
+            31.41695752,
+            30.70133294
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-level",
+      "properties": {
+        "feature_type": "level",
+        "name": "Ground",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41552623,
+              30.70069969
+            ],
+            [
+              31.41625755,
+              30.70069969
+            ],
+            [
+              31.41625755,
+              30.70115201
+            ],
+            [
+              31.41552623,
+              30.70115201
+            ],
+            [
+              31.41552623,
+              30.70069969
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-corridor",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Arrivals Corridor",
+        "category": "corridor",
+        "anchor": [
+          -47,
+          0
+        ],
+        "summary": "Main corridor of Arrivals.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41556802,
+              30.70089871
+            ],
+            [
+              31.41621576,
+              30.70089871
+            ],
+            [
+              31.41621576,
+              30.70097108
+            ],
+            [
+              31.41556802,
+              30.70097108
+            ],
+            [
+              31.41556802,
+              30.70089871
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-elev",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Elevator B",
+        "category": "elevator",
+        "anchor": [
+          -71,
+          -13
+        ],
+        "transition_group": "E2",
+        "transition_kind": "elevator",
+        "summary": "Serves every floor of Arrivals.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41556802,
+              30.70073587
+            ],
+            [
+              31.41571428,
+              30.70073587
+            ],
+            [
+              31.41571428,
+              30.70089871
+            ],
+            [
+              31.41556802,
+              30.70089871
+            ],
+            [
+              31.41556802,
+              30.70073587
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-stair",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Stair B",
+        "category": "stair",
+        "anchor": [
+          -71,
+          12
+        ],
+        "transition_group": "S2",
+        "transition_kind": "stair",
+        "summary": "Serves every floor of Arrivals.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41556802,
+              30.70097108
+            ],
+            [
+              31.41571428,
+              30.70097108
+            ],
+            [
+              31.41571428,
+              30.70111582
+            ],
+            [
+              31.41556802,
+              30.70111582
+            ],
+            [
+              31.41556802,
+              30.70097108
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-r0",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Arrivals Hall",
+        "category": "hall",
+        "anchor": [
+          -53,
+          -13
+        ],
+        "summary": "Arrivals Hall in Arrivals.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41571428,
+              30.70073587
+            ],
+            [
+              31.41594412,
+              30.70073587
+            ],
+            [
+              31.41594412,
+              30.70089871
+            ],
+            [
+              31.41571428,
+              30.70089871
+            ],
+            [
+              31.41571428,
+              30.70073587
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-r1",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Customs",
+        "category": "room",
+        "anchor": [
+          -35,
+          -13
+        ],
+        "summary": "Customs in Arrivals.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41594412,
+              30.70073587
+            ],
+            [
+              31.41609039,
+              30.70073587
+            ],
+            [
+              31.41609039,
+              30.70089871
+            ],
+            [
+              31.41594412,
+              30.70089871
+            ],
+            [
+              31.41594412,
+              30.70073587
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-r2",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Baggage Hall",
+        "category": "hall",
+        "anchor": [
+          -22,
+          -13
+        ],
+        "summary": "Baggage Hall in Arrivals.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41609039,
+              30.70073587
+            ],
+            [
+              31.41621576,
+              30.70073587
+            ],
+            [
+              31.41621576,
+              30.70089871
+            ],
+            [
+              31.41609039,
+              30.70089871
+            ],
+            [
+              31.41609039,
+              30.70073587
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-r3",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Waiting Lounge",
+        "category": "hall",
+        "anchor": [
+          -53,
+          12
+        ],
+        "summary": "Waiting Lounge in Arrivals.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41571428,
+              30.70097108
+            ],
+            [
+              31.41594412,
+              30.70097108
+            ],
+            [
+              31.41594412,
+              30.70111582
+            ],
+            [
+              31.41571428,
+              30.70111582
+            ],
+            [
+              31.41571428,
+              30.70097108
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-r4",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Meeting Room",
+        "category": "room",
+        "anchor": [
+          -35,
+          12
+        ],
+        "summary": "Meeting Room in Arrivals.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41594412,
+              30.70097108
+            ],
+            [
+              31.41609039,
+              30.70097108
+            ],
+            [
+              31.41609039,
+              30.70111582
+            ],
+            [
+              31.41594412,
+              30.70111582
+            ],
+            [
+              31.41594412,
+              30.70097108
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-r5",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Arrivals Office",
+        "category": "room",
+        "anchor": [
+          -22,
+          12
+        ],
+        "summary": "Arrivals Office in Arrivals.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41609039,
+              30.70097108
+            ],
+            [
+              31.41621576,
+              30.70097108
+            ],
+            [
+              31.41621576,
+              30.70111582
+            ],
+            [
+              31.41609039,
+              30.70111582
+            ],
+            [
+              31.41609039,
+              30.70097108
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-spine",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Arrivals Corridor",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41564114640334,
+            30.70093489
+          ],
+          [
+            31.415829199146152,
+            30.70093489
+          ],
+          [
+            31.41601725188897,
+            30.70093489
+          ],
+          [
+            31.41615306775878,
+            30.70093489
+          ],
+          [
+            31.416257541504788,
+            30.70093489
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-door0",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41564115,
+            30.70093489
+          ],
+          [
+            31.41564115,
+            30.70081729
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-door1",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41564115,
+            30.70093489
+          ],
+          [
+            31.41564115,
+            30.70104345
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-door2",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.4158292,
+            30.70093489
+          ],
+          [
+            31.4158292,
+            30.70081729
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-door3",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41601726,
+            30.70093489
+          ],
+          [
+            31.41601726,
+            30.70081729
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-door4",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41615307,
+            30.70093489
+          ],
+          [
+            31.41615307,
+            30.70081729
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-door5",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.4158292,
+            30.70093489
+          ],
+          [
+            31.4158292,
+            30.70104345
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-door6",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41601726,
+            30.70093489
+          ],
+          [
+            31.41601726,
+            30.70104345
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L0-door7",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41615307,
+            30.70093489
+          ],
+          [
+            31.41615307,
+            30.70104345
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-level",
+      "properties": {
+        "feature_type": "level",
+        "name": "Level 1",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41552623,
+              30.70069969
+            ],
+            [
+              31.41625755,
+              30.70069969
+            ],
+            [
+              31.41625755,
+              30.70115201
+            ],
+            [
+              31.41552623,
+              30.70115201
+            ],
+            [
+              31.41552623,
+              30.70069969
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-corridor",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Arrivals Corridor",
+        "category": "corridor",
+        "anchor": [
+          -47,
+          0
+        ],
+        "summary": "Main corridor of Arrivals.",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41556802,
+              30.70089871
+            ],
+            [
+              31.41621576,
+              30.70089871
+            ],
+            [
+              31.41621576,
+              30.70097108
+            ],
+            [
+              31.41556802,
+              30.70097108
+            ],
+            [
+              31.41556802,
+              30.70089871
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-elev",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Elevator B",
+        "category": "elevator",
+        "anchor": [
+          -71,
+          -13
+        ],
+        "transition_group": "E2",
+        "transition_kind": "elevator",
+        "summary": "Serves every floor of Arrivals.",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41556802,
+              30.70073587
+            ],
+            [
+              31.41571428,
+              30.70073587
+            ],
+            [
+              31.41571428,
+              30.70089871
+            ],
+            [
+              31.41556802,
+              30.70089871
+            ],
+            [
+              31.41556802,
+              30.70073587
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-stair",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Stair B",
+        "category": "stair",
+        "anchor": [
+          -71,
+          12
+        ],
+        "transition_group": "S2",
+        "transition_kind": "stair",
+        "summary": "Serves every floor of Arrivals.",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41556802,
+              30.70097108
+            ],
+            [
+              31.41571428,
+              30.70097108
+            ],
+            [
+              31.41571428,
+              30.70111582
+            ],
+            [
+              31.41556802,
+              30.70111582
+            ],
+            [
+              31.41556802,
+              30.70097108
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-r0",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Departure Hall",
+        "category": "hall",
+        "anchor": [
+          -53,
+          -13
+        ],
+        "summary": "Departure Hall in Arrivals.",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41571428,
+              30.70073587
+            ],
+            [
+              31.41594412,
+              30.70073587
+            ],
+            [
+              31.41594412,
+              30.70089871
+            ],
+            [
+              31.41571428,
+              30.70089871
+            ],
+            [
+              31.41571428,
+              30.70073587
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-r1",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Airline Office",
+        "category": "room",
+        "anchor": [
+          -35,
+          -13
+        ],
+        "summary": "Airline Office in Arrivals.",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41594412,
+              30.70073587
+            ],
+            [
+              31.41609039,
+              30.70073587
+            ],
+            [
+              31.41609039,
+              30.70089871
+            ],
+            [
+              31.41594412,
+              30.70089871
+            ],
+            [
+              31.41594412,
+              30.70073587
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-r2",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Security Room",
+        "category": "room",
+        "anchor": [
+          -22,
+          -13
+        ],
+        "summary": "Security Room in Arrivals.",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41609039,
+              30.70073587
+            ],
+            [
+              31.41621576,
+              30.70073587
+            ],
+            [
+              31.41621576,
+              30.70089871
+            ],
+            [
+              31.41609039,
+              30.70089871
+            ],
+            [
+              31.41609039,
+              30.70073587
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-r3",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Gate Lounge",
+        "category": "hall",
+        "anchor": [
+          -53,
+          12
+        ],
+        "summary": "Gate Lounge in Arrivals.",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41571428,
+              30.70097108
+            ],
+            [
+              31.41594412,
+              30.70097108
+            ],
+            [
+              31.41594412,
+              30.70111582
+            ],
+            [
+              31.41571428,
+              30.70111582
+            ],
+            [
+              31.41571428,
+              30.70097108
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-r4",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Cafe",
+        "category": "room",
+        "anchor": [
+          -35,
+          12
+        ],
+        "summary": "Cafe in Arrivals.",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41594412,
+              30.70097108
+            ],
+            [
+              31.41609039,
+              30.70097108
+            ],
+            [
+              31.41609039,
+              30.70111582
+            ],
+            [
+              31.41594412,
+              30.70111582
+            ],
+            [
+              31.41594412,
+              30.70097108
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-r5",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Duty Office",
+        "category": "room",
+        "anchor": [
+          -22,
+          12
+        ],
+        "summary": "Duty Office in Arrivals.",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41609039,
+              30.70097108
+            ],
+            [
+              31.41621576,
+              30.70097108
+            ],
+            [
+              31.41621576,
+              30.70111582
+            ],
+            [
+              31.41609039,
+              30.70111582
+            ],
+            [
+              31.41609039,
+              30.70097108
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-spine",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Arrivals Corridor",
+        "category": "pathway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41564115,
+            30.70093489
+          ],
+          [
+            31.4158292,
+            30.70093489
+          ],
+          [
+            31.41601726,
+            30.70093489
+          ],
+          [
+            31.41615307,
+            30.70093489
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-door0",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41564115,
+            30.70093489
+          ],
+          [
+            31.41564115,
+            30.70081729
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-door1",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41564115,
+            30.70093489
+          ],
+          [
+            31.41564115,
+            30.70104345
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-door2",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.4158292,
+            30.70093489
+          ],
+          [
+            31.4158292,
+            30.70081729
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-door3",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41601726,
+            30.70093489
+          ],
+          [
+            31.41601726,
+            30.70081729
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-door4",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41615307,
+            30.70093489
+          ],
+          [
+            31.41615307,
+            30.70081729
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-door5",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.4158292,
+            30.70093489
+          ],
+          [
+            31.4158292,
+            30.70104345
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-door6",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41601726,
+            30.70093489
+          ],
+          [
+            31.41601726,
+            30.70104345
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L1-door7",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L1",
+        "level_name": "Level 1",
+        "ordinal": 1,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41615307,
+            30.70093489
+          ],
+          [
+            31.41615307,
+            30.70104345
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-level",
+      "properties": {
+        "feature_type": "level",
+        "name": "Level 2",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41552623,
+              30.70069969
+            ],
+            [
+              31.41625755,
+              30.70069969
+            ],
+            [
+              31.41625755,
+              30.70115201
+            ],
+            [
+              31.41552623,
+              30.70115201
+            ],
+            [
+              31.41552623,
+              30.70069969
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-corridor",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Arrivals Corridor",
+        "category": "corridor",
+        "anchor": [
+          -47,
+          0
+        ],
+        "summary": "Main corridor of Arrivals.",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41556802,
+              30.70089871
+            ],
+            [
+              31.41621576,
+              30.70089871
+            ],
+            [
+              31.41621576,
+              30.70097108
+            ],
+            [
+              31.41556802,
+              30.70097108
+            ],
+            [
+              31.41556802,
+              30.70089871
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-elev",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Elevator B",
+        "category": "elevator",
+        "anchor": [
+          -71,
+          -13
+        ],
+        "transition_group": "E2",
+        "transition_kind": "elevator",
+        "summary": "Serves every floor of Arrivals.",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41556802,
+              30.70073587
+            ],
+            [
+              31.41571428,
+              30.70073587
+            ],
+            [
+              31.41571428,
+              30.70089871
+            ],
+            [
+              31.41556802,
+              30.70089871
+            ],
+            [
+              31.41556802,
+              30.70073587
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-stair",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Stair B",
+        "category": "stair",
+        "anchor": [
+          -71,
+          12
+        ],
+        "transition_group": "S2",
+        "transition_kind": "stair",
+        "summary": "Serves every floor of Arrivals.",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41556802,
+              30.70097108
+            ],
+            [
+              31.41571428,
+              30.70097108
+            ],
+            [
+              31.41571428,
+              30.70111582
+            ],
+            [
+              31.41556802,
+              30.70111582
+            ],
+            [
+              31.41556802,
+              30.70097108
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-r0",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Transfer Hall",
+        "category": "hall",
+        "anchor": [
+          -53,
+          -13
+        ],
+        "summary": "Transfer Hall in Arrivals.",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41571428,
+              30.70073587
+            ],
+            [
+              31.41594412,
+              30.70073587
+            ],
+            [
+              31.41594412,
+              30.70089871
+            ],
+            [
+              31.41571428,
+              30.70089871
+            ],
+            [
+              31.41571428,
+              30.70073587
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-r1",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Ticket Office",
+        "category": "room",
+        "anchor": [
+          -35,
+          -13
+        ],
+        "summary": "Ticket Office in Arrivals.",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41594412,
+              30.70073587
+            ],
+            [
+              31.41609039,
+              30.70073587
+            ],
+            [
+              31.41609039,
+              30.70089871
+            ],
+            [
+              31.41594412,
+              30.70089871
+            ],
+            [
+              31.41594412,
+              30.70073587
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-r2",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Lost and Found",
+        "category": "room",
+        "anchor": [
+          -22,
+          -13
+        ],
+        "summary": "Lost and Found in Arrivals.",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41609039,
+              30.70073587
+            ],
+            [
+              31.41621576,
+              30.70073587
+            ],
+            [
+              31.41621576,
+              30.70089871
+            ],
+            [
+              31.41609039,
+              30.70089871
+            ],
+            [
+              31.41609039,
+              30.70073587
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-r3",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Boarding Hall",
+        "category": "hall",
+        "anchor": [
+          -53,
+          12
+        ],
+        "summary": "Boarding Hall in Arrivals.",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41571428,
+              30.70097108
+            ],
+            [
+              31.41594412,
+              30.70097108
+            ],
+            [
+              31.41594412,
+              30.70111582
+            ],
+            [
+              31.41571428,
+              30.70111582
+            ],
+            [
+              31.41571428,
+              30.70097108
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-r4",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Quiet Room",
+        "category": "room",
+        "anchor": [
+          -35,
+          12
+        ],
+        "summary": "Quiet Room in Arrivals.",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41594412,
+              30.70097108
+            ],
+            [
+              31.41609039,
+              30.70097108
+            ],
+            [
+              31.41609039,
+              30.70111582
+            ],
+            [
+              31.41594412,
+              30.70111582
+            ],
+            [
+              31.41594412,
+              30.70097108
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-r5",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Admin Office",
+        "category": "room",
+        "anchor": [
+          -22,
+          12
+        ],
+        "summary": "Admin Office in Arrivals.",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41609039,
+              30.70097108
+            ],
+            [
+              31.41621576,
+              30.70097108
+            ],
+            [
+              31.41621576,
+              30.70111582
+            ],
+            [
+              31.41609039,
+              30.70111582
+            ],
+            [
+              31.41609039,
+              30.70097108
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-spine",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Arrivals Corridor",
+        "category": "pathway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41564115,
+            30.70093489
+          ],
+          [
+            31.4158292,
+            30.70093489
+          ],
+          [
+            31.41601726,
+            30.70093489
+          ],
+          [
+            31.41615307,
+            30.70093489
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-door0",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41564115,
+            30.70093489
+          ],
+          [
+            31.41564115,
+            30.70081729
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-door1",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41564115,
+            30.70093489
+          ],
+          [
+            31.41564115,
+            30.70104345
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-door2",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.4158292,
+            30.70093489
+          ],
+          [
+            31.4158292,
+            30.70081729
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-door3",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41601726,
+            30.70093489
+          ],
+          [
+            31.41601726,
+            30.70081729
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-door4",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41615307,
+            30.70093489
+          ],
+          [
+            31.41615307,
+            30.70081729
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-door5",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.4158292,
+            30.70093489
+          ],
+          [
+            31.4158292,
+            30.70104345
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-door6",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41601726,
+            30.70093489
+          ],
+          [
+            31.41601726,
+            30.70104345
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "arr-L2-door7",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L2",
+        "level_name": "Level 2",
+        "ordinal": 2,
+        "building": "Arrivals",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41615307,
+            30.70093489
+          ],
+          [
+            31.41615307,
+            30.70104345
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-level",
+      "properties": {
+        "feature_type": "level",
+        "name": "Ground",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41753212,
+              30.70127866
+            ],
+            [
+              31.41828433,
+              30.70127866
+            ],
+            [
+              31.41828433,
+              30.7016948
+            ],
+            [
+              31.41753212,
+              30.7016948
+            ],
+            [
+              31.41753212,
+              30.70127866
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-corridor",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Operations Corridor",
+        "category": "corridor",
+        "anchor": [
+          146,
+          62
+        ],
+        "summary": "Main corridor of Operations.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41757391,
+              30.70145959
+            ],
+            [
+              31.41824254,
+              30.70145959
+            ],
+            [
+              31.41824254,
+              30.70153196
+            ],
+            [
+              31.41757391,
+              30.70153196
+            ],
+            [
+              31.41757391,
+              30.70145959
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-elev",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Elevator C",
+        "category": "elevator",
+        "anchor": [
+          121,
+          49
+        ],
+        "transition_group": "E3",
+        "transition_kind": "elevator",
+        "summary": "Serves every floor of Operations.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41757391,
+              30.70129675
+            ],
+            [
+              31.41772017,
+              30.70129675
+            ],
+            [
+              31.41772017,
+              30.70145959
+            ],
+            [
+              31.41757391,
+              30.70145959
+            ],
+            [
+              31.41757391,
+              30.70129675
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-stair",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Stair C",
+        "category": "stair",
+        "anchor": [
+          121,
+          74
+        ],
+        "transition_group": "S3",
+        "transition_kind": "stair",
+        "summary": "Serves every floor of Operations.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41757391,
+              30.70153196
+            ],
+            [
+              31.41772017,
+              30.70153196
+            ],
+            [
+              31.41772017,
+              30.7016767
+            ],
+            [
+              31.41757391,
+              30.7016767
+            ],
+            [
+              31.41757391,
+              30.70153196
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-r0",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Security Hall",
+        "category": "hall",
+        "anchor": [
+          139,
+          49
+        ],
+        "summary": "Security Hall in Operations.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41772017,
+              30.70129675
+            ],
+            [
+              31.41795001,
+              30.70129675
+            ],
+            [
+              31.41795001,
+              30.70145959
+            ],
+            [
+              31.41772017,
+              30.70145959
+            ],
+            [
+              31.41772017,
+              30.70129675
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-r1",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Server Room",
+        "category": "room",
+        "anchor": [
+          157,
+          49
+        ],
+        "summary": "Server Room in Operations.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41795001,
+              30.70129675
+            ],
+            [
+              31.41809628,
+              30.70129675
+            ],
+            [
+              31.41809628,
+              30.70145959
+            ],
+            [
+              31.41795001,
+              30.70145959
+            ],
+            [
+              31.41795001,
+              30.70129675
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-r2",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Equipment Store",
+        "category": "room",
+        "anchor": [
+          171,
+          49
+        ],
+        "summary": "Equipment Store in Operations.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41809628,
+              30.70129675
+            ],
+            [
+              31.41824254,
+              30.70129675
+            ],
+            [
+              31.41824254,
+              30.70145959
+            ],
+            [
+              31.41809628,
+              30.70145959
+            ],
+            [
+              31.41809628,
+              30.70129675
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-r3",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Operations Hall",
+        "category": "hall",
+        "anchor": [
+          141,
+          74
+        ],
+        "summary": "Operations Hall in Operations.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41772017,
+              30.70153196
+            ],
+            [
+              31.4179918,
+              30.70153196
+            ],
+            [
+              31.4179918,
+              30.7016767
+            ],
+            [
+              31.41772017,
+              30.7016767
+            ],
+            [
+              31.41772017,
+              30.70153196
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-r4",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Briefing Room",
+        "category": "room",
+        "anchor": [
+          160,
+          74
+        ],
+        "summary": "Briefing Room in Operations.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.4179918,
+              30.70153196
+            ],
+            [
+              31.41811717,
+              30.70153196
+            ],
+            [
+              31.41811717,
+              30.7016767
+            ],
+            [
+              31.4179918,
+              30.7016767
+            ],
+            [
+              31.4179918,
+              30.70153196
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-r5",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Records Room",
+        "category": "room",
+        "anchor": [
+          172,
+          74
+        ],
+        "summary": "Records Room in Operations.",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41811717,
+              30.70153196
+            ],
+            [
+              31.41824254,
+              30.70153196
+            ],
+            [
+              31.41824254,
+              30.7016767
+            ],
+            [
+              31.41811717,
+              30.7016767
+            ],
+            [
+              31.41811717,
+              30.70153196
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-spine",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Operations Corridor",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.417532121206094,
+            30.7014957729383
+          ],
+          [
+            31.417647042326703,
+            30.7014957729383
+          ],
+          [
+            31.41783509506952,
+            30.7014957729383
+          ],
+          [
+            31.417855989818722,
+            30.7014957729383
+          ],
+          [
+            31.418023147812335,
+            30.7014957729383
+          ],
+          [
+            31.418054489936136,
+            30.7014957729383
+          ],
+          [
+            31.418169411056745,
+            30.7014957729383
+          ],
+          [
+            31.418179858431348,
+            30.7014957729383
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-door0",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41764704,
+            30.70149577
+          ],
+          [
+            31.41764704,
+            30.70137817
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-door1",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41764704,
+            30.70149577
+          ],
+          [
+            31.41764704,
+            30.70160433
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-door2",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41783509,
+            30.70149577
+          ],
+          [
+            31.41783509,
+            30.70137817
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-door3",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41802314,
+            30.70149577
+          ],
+          [
+            31.41802314,
+            30.70137817
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-door4",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41816941,
+            30.70149577
+          ],
+          [
+            31.41816941,
+            30.70137817
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-door5",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41785599,
+            30.70149577
+          ],
+          [
+            31.41785599,
+            30.70160433
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-door6",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41805449,
+            30.70149577
+          ],
+          [
+            31.41805449,
+            30.70160433
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ops-L0-door7",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Doorway",
+        "category": "pathway",
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Operations",
+        "placed": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.41817985,
+            30.70149577
+          ],
+          [
+            31.41817985,
+            30.70160433
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "lawn-south",
+      "properties": {
+        "feature_type": "green",
+        "color": "8FBF78"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41644559,
+              30.70062731
+            ],
+            [
+              31.41734407,
+              30.70062731
+            ],
+            [
+              31.41734407,
+              30.7009168
+            ],
+            [
+              31.41644559,
+              30.7009168
+            ],
+            [
+              31.41644559,
+              30.70062731
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "lawn-north",
+      "properties": {
+        "feature_type": "green",
+        "color": "7EAE62"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.4164247,
+              30.70145959
+            ],
+            [
+              31.41746944,
+              30.70145959
+            ],
+            [
+              31.41746944,
+              30.70180335
+            ],
+            [
+              31.4164247,
+              30.70180335
+            ],
+            [
+              31.4164247,
+              30.70145959
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "lawn-west",
+      "properties": {
+        "feature_type": "green",
+        "color": "A3C98A"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41525459,
+              30.70057303
+            ],
+            [
+              31.41548444,
+              30.70057303
+            ],
+            [
+              31.41548444,
+              30.70120628
+            ],
+            [
+              31.41525459,
+              30.70120628
+            ],
+            [
+              31.41525459,
+              30.70057303
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "lawn-gap-sw",
+      "properties": {
+        "feature_type": "green",
+        "color": "6FA85A"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41628888,
+              30.70095298
+            ],
+            [
+              31.41639336,
+              30.70095298
+            ],
+            [
+              31.41639336,
+              30.70124247
+            ],
+            [
+              31.41628888,
+              30.70124247
+            ],
+            [
+              31.41628888,
+              30.70095298
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "lawn-gap-ne",
+      "properties": {
+        "feature_type": "green",
+        "color": "7EAE62"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41730228,
+              30.70111582
+            ],
+            [
+              31.41751123,
+              30.70111582
+            ],
+            [
+              31.41751123,
+              30.70158624
+            ],
+            [
+              31.41730228,
+              30.70158624
+            ],
+            [
+              31.41730228,
+              30.70111582
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "lawn-east",
+      "properties": {
+        "feature_type": "green",
+        "color": "98C47E"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.41830523,
+              30.70126056
+            ],
+            [
+              31.41853507,
+              30.70126056
+            ],
+            [
+              31.41853507,
+              30.70180335
+            ],
+            [
+              31.41830523,
+              30.70180335
+            ],
+            [
+              31.41830523,
+              30.70126056
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-0",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1.15,
+        "color": "2F7D45",
+        "tree": "palm"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41537996,
+          30.70075396
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-1",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 0.9,
+        "color": "3E8C4C",
+        "tree": "shade"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41542175,
+          30.7008987
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-2",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1.3,
+        "color": "356B3C",
+        "tree": "palm"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41535907,
+          30.70102535
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-3",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 0.85,
+        "color": "4C9A55",
+        "tree": "shade"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41544265,
+          30.70113391
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-4",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1.2,
+        "color": "2F7D45",
+        "tree": "palm"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.416303509953032,
+          30.70100726
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-5",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 0.95,
+        "color": "3E8C4C",
+        "tree": "shade"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.416288883628592,
+          30.701079633984076
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-6",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1.35,
+        "color": "356B3C",
+        "tree": "palm"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.416288883628592,
+          30.701188191972136
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-7",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1.1,
+        "color": "2F7D45",
+        "tree": "shade"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41657096,
+          30.70073587
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-8",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1.4,
+        "color": "3E8C4C",
+        "tree": "palm"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41675902,
+          30.70079015
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-9",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 0.9,
+        "color": "4C9A55",
+        "tree": "shade"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41694707,
+          30.70071777
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-10",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1.2,
+        "color": "356B3C",
+        "tree": "palm"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41713512,
+          30.70082633
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-11",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 0.8,
+        "color": "2F7D45",
+        "tree": "shade"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41667544,
+          30.70086252
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-12",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1.25,
+        "color": "2F7D45",
+        "tree": "palm"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41659186,
+          30.70155005
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-13",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1.05,
+        "color": "3E8C4C",
+        "tree": "shade"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.4168008,
+          30.70164052
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-14",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1.4,
+        "color": "356B3C",
+        "tree": "palm"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41703065,
+          30.70153196
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-15",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 0.95,
+        "color": "4C9A55",
+        "tree": "shade"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41726049,
+          30.7016948
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-16",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1.15,
+        "color": "2F7D45",
+        "tree": "palm"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41690528,
+          30.70174907
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-17",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1.2,
+        "color": "3E8C4C",
+        "tree": "shade"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41736496,
+          30.70118819
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-18",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1.35,
+        "color": "2F7D45",
+        "tree": "palm"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41740675,
+          30.70135103
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-19",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 0.9,
+        "color": "356B3C",
+        "tree": "shade"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41746944,
+          30.701463205541884
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-20",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1.1,
+        "color": "4C9A55",
+        "tree": "palm"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41734407,
+          30.70155005
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-21",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1.2,
+        "color": "2F7D45",
+        "tree": "shade"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41838881,
+          30.70136912
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-22",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1,
+        "color": "3E8C4C",
+        "tree": "palm"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41845149,
+          30.70153196
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tree-23",
+      "properties": {
+        "feature_type": "tree",
+        "scale": 1.3,
+        "color": "356B3C",
+        "tree": "shade"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41836791,
+          30.7016767
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "outdoor-west",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "West grounds",
+        "category": "pathway",
+        "outdoor": true,
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Grounds"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.416257541504788,
+            30.70093489
+          ],
+          [
+            31.416341120501595,
+            30.70093489
+          ],
+          [
+            31.416341120501595,
+            30.701242470966164
+          ],
+          [
+            31.4164038047492,
+            30.701242470966164
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "outdoor-east",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "East grounds",
+        "category": "pathway",
+        "outdoor": true,
+        "level_id": "L0",
+        "level_name": "Ground",
+        "ordinal": 0,
+        "building": "Grounds"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.417281384215674,
+            30.701242470966164
+          ],
+          [
+            31.41734406846328,
+            30.701242470966164
+          ],
+          [
+            31.41734406846328,
+            30.7014957729383
+          ],
+          [
+            31.417532121206094,
+            30.7014957729383
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "road-0",
+      "properties": {
+        "feature_type": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.415129225047895,
+            30.700410193057717
+          ],
+          [
+            31.418681332412188,
+            30.700410193057717
+          ],
+          [
+            31.418681332412188,
+            30.702002376882575
+          ],
+          [
+            31.415129225047895,
+            30.702002376882575
+          ],
+          [
+            31.415129225047895,
+            30.700410193057717
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "road-1",
+      "properties": {
+        "feature_type": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.417406752710885,
+            30.700410193057717
+          ],
+          [
+            31.417406752710885,
+            30.702002376882575
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "road-2",
+      "properties": {
+        "feature_type": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.417406752710885,
+            30.701115819980096
+          ],
+          [
+            31.418681332412188,
+            30.701115819980096
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "road-3",
+      "properties": {
+        "feature_type": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            31.415129225047895,
+            30.701278656962184
+          ],
+          [
+            31.416215752006387,
+            30.701278656962184
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "car-0",
+      "properties": {
+        "feature_type": "car",
+        "heading": 0,
+        "color": "F7F8FA"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.415756067523947,
+          30.700394814009407
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "car-1",
+      "properties": {
+        "feature_type": "car",
+        "heading": 0,
+        "color": "1B2A4A"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.417218699968068,
+          30.700394814009407
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "car-2",
+      "properties": {
+        "feature_type": "car",
+        "heading": 1.5707963267948966,
+        "color": "B42318"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41869909294901,
+          30.701676702918398
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "car-3",
+      "properties": {
+        "feature_type": "car",
+        "heading": 3.141592653589793,
+        "color": "C5CDD6"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41627843625399,
+          30.700425572106024
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "car-4",
+      "properties": {
+        "feature_type": "car",
+        "heading": 3.141592653589793,
+        "color": "1565A8"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.418263437428156,
+          30.700425572106024
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "car-5",
+      "properties": {
+        "feature_type": "car",
+        "heading": 6.283185307179586,
+        "color": "E8EEF4"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41675901548563,
+          30.70198699783427
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "car-6",
+      "properties": {
+        "feature_type": "car",
+        "heading": 1.5707963267948966,
+        "color": "B42318"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.417424513247706,
+          30.70077205301791
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "car-7",
+      "properties": {
+        "feature_type": "car",
+        "heading": 4.71238898038469,
+        "color": "C5CDD6"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41738899217406,
+          30.7014957729383
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "car-8",
+      "properties": {
+        "feature_type": "car",
+        "heading": 0,
+        "color": "1565A8"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.417782858196514,
+          30.70110044093179
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "car-9",
+      "properties": {
+        "feature_type": "car",
+        "heading": 3.141592653589793,
+        "color": "E8EEF4"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41834701642496,
+          30.701131199028406
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "car-10",
+      "properties": {
+        "feature_type": "car",
+        "heading": 0,
+        "color": "F7F8FA"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.41542175153672,
+          30.701263277913878
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "car-11",
+      "properties": {
+        "feature_type": "car",
+        "heading": 3.141592653589793,
+        "color": "1B2A4A"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          31.415860541269957,
+          30.701294036010495
+        ]
+      }
+    }
+  ]
+}

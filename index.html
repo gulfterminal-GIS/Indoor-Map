@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Indoor Map</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="vendor/maplibre/maplibre-gl.css" />
+  <link rel="stylesheet" href="vendor/pannellum/pannellum.css" />
+  <link rel="stylesheet" href="css/app.css" />
+  <script>
+    try {
+      var t = localStorage.getItem('indoor.ui.v1.theme');
+      if (t === 'glass' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+</head>
+<body>
+<div id="app">
+  <div id="map-wrap">
+    <aside id="dock" aria-label="Workspace panel">
+      <div class="dock-head">
+        <div>
+          <div class="dock-kicker">Gulf Terminal · Indoor</div>
+          <h2 id="dock-title">Floors</h2>
+        </div>
+        <button class="icon-btn" id="btn-close-dock" type="button" aria-label="Close panel">×</button>
+      </div>
+      <div class="dock-body">
+        <div class="panel active" id="panel-floors">
+          <div class="section-label">Building floors</div>
+          <p class="muted">Switch the plan. Routes stay attached to the floor they use.</p>
+          <div id="floor-list"></div>
+        </div>
+
+        <div class="panel" id="panel-layers">
+          <div class="section-label">On this floor</div>
+          <p class="muted">Rooms, halls, and circulation. Pathways are the walk network used for directions.</p>
+          <div id="layer-list"></div>
+        </div>
+
+        <div class="panel" id="panel-directions">
+          <div class="section-label">Route</div>
+          <p class="muted">Choose two places, pick them on the map, or draw a start and an end. The guide walks the route and draws it as it goes.</p>
+          <div class="field">
+            <label for="route-from">From</label>
+            <select id="route-from"></select>
+            <div class="field-note" id="from-note"></div>
+          </div>
+          <div class="field">
+            <label for="route-to">To</label>
+            <select id="route-to"></select>
+            <div class="field-note" id="to-note"></div>
+          </div>
+          <div class="section-label">Between floors</div>
+          <div class="seg" role="group" aria-label="Stairs or elevator">
+            <button class="seg-btn active" type="button" data-vertical="either">Either</button>
+            <button class="seg-btn" type="button" data-vertical="elevator">Elevator</button>
+            <button class="seg-btn" type="button" data-vertical="stair">Stairs</button>
+          </div>
+          <button class="btn btn-primary" id="btn-route" type="button">Get directions</button>
+          <div class="btn-row">
+            <button class="btn" id="btn-swap" type="button">Swap</button>
+            <button class="btn" id="btn-clear-route" type="button">Clear</button>
+          </div>
+          <div class="section-label">On the map</div>
+          <button class="choice-btn" id="pick-from" type="button">
+            <span class="choice-copy"><strong>Pick start</strong><span>Click a place or the corridor</span></span>
+          </button>
+          <button class="choice-btn" id="pick-to" type="button">
+            <span class="choice-copy"><strong>Pick destination</strong><span>Click where the route should end</span></span>
+          </button>
+          <button class="choice-btn" id="pick-draw" type="button">
+            <span class="choice-copy"><strong>Draw</strong><span>Click start, then destination</span></span>
+          </button>
+          <div class="section-label">Guide</div>
+          <div class="seg" role="group" aria-label="Character">
+            <button class="seg-btn" type="button" data-avatar="boy">Male</button>
+            <button class="seg-btn" type="button" data-avatar="girl">Female</button>
+          </div>
+          <div class="seg" role="group" aria-label="Pace">
+            <button class="seg-btn" type="button" data-gait="walk">Walk</button>
+            <button class="seg-btn" type="button" data-gait="run">Run</button>
+          </div>
+          <div class="btn-row" id="play-row">
+            <button class="btn" id="btn-play" type="button" disabled>Pause</button>
+            <button class="btn" id="btn-replay" type="button" disabled>Replay</button>
+            <button class="btn" id="btn-skip" type="button" disabled>Skip</button>
+          </div>
+          <div id="route-summary"></div>
+          <div id="route-steps"></div>
+          <p class="muted" id="route-empty">The route will appear here.</p>
+        </div>
+      </div>
+    </aside>
+
+    <div id="viewDiv"></div>
+    <div id="label-layer" aria-hidden="true"></div>
+
+    <div id="top-bar">
+      <div id="floor-pills" aria-label="Floors"></div>
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <div id="map-legend" class="open">
+      <div class="legend-title">Places</div>
+      <div id="legendContent"></div>
+    </div>
+
+    <div id="bottom-stack">
+      <div id="status-bar">
+        <div class="status-item"><span class="dot" style="background:#1565A8"></span><span class="k">Floor</span><span class="v" id="stat-floor">—</span></div>
+        <div class="status-item"><span class="dot" style="background:#2F4A6D"></span><span class="k">Place</span><span class="v" id="stat-place">—</span></div>
+        <div class="status-item"><span class="dot" style="background:#15803D"></span><span class="k">Route</span><span class="v" id="stat-route">—</span></div>
+        <div class="status-item"><span class="dot" style="background:#6B778C"></span><span class="k">Cursor</span><span class="v" id="stat-coords">—</span></div>
+        <div class="status-item"><span class="dot" style="background:#C45C26"></span><span class="k">Zoom</span><span class="v" id="stat-zoom">—</span></div>
+      </div>
+
+      <nav id="map-toolbar" aria-label="Map tools">
+        <button class="tool" type="button" data-dock="floors" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 16.2h18V20H3v-3.8zM5 10.2h14v3.6H5v-3.6zM7 4h10v3.6H7V4z"/></svg>
+          <span>Floors</span>
+        </button>
+        <button class="tool" type="button" data-dock="layers" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 2 8l10 6 10-6-10-6zm-8.3 8.6L2 11.5l10 6 10-6-1.7-.9L12 15.2 3.7 10.6zM2 15.1l10 6 10-6-1.7-.9L12 18.7 3.7 14.2 2 15.1z"/></svg>
+          <span>Layers</span>
+        </button>
+        <button class="tool" type="button" data-dock="directions" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 4.5 19.5 12 16.2l7.5 3.3L12 2zm0 5.2 3.2 8.3-3.2-1.4-3.2 1.4L12 7.2z"/></svg>
+          <span>Directions</span>
+        </button>
+        <button class="tool" type="button" id="btn-pano" aria-expanded="false" aria-controls="pano-menu">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 3.2a6.8 6.8 0 1 1 0 13.6 6.8 6.8 0 0 1 0-13.6z"/></svg>
+          <span>360</span>
+        </button>
+        <button class="tool active" type="button" id="btn-legend" aria-pressed="true">
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5.5" cy="6.5" r="2"/><circle cx="5.5" cy="12" r="2"/><circle cx="5.5" cy="17.5" r="2"/><path d="M10 5.5h10v2H10v-2zm0 5.5h10v2H10v-2zm0 5.5h8v2h-8v-2z"/></svg>
+          <span>Legend</span>
+        </button>
+        <button class="tool" type="button" id="btn-search" aria-expanded="false" aria-controls="search-menu">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 9.5 16c1.6 0 3.1-.6 4.2-1.6l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"/></svg>
+          <span>Search</span>
+        </button>
+        <div class="tool-sep" aria-hidden="true"></div>
+        <button class="tool" id="btn-home" type="button">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2.4 11.6h2.8V21h5.5v-6.4h3.6V21h5.5v-9.4h2.8L12 3z"/></svg>
+          <span>Home</span>
+        </button>
+        <button class="tool" id="btn-3d" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5zm0 2.3L18.6 8 12 11.7 5.4 8 12 4.3zM5 9.7l6 3.4v6.6l-6-3.4V9.7zm8 10v-6.6l6-3.4v6.6l-6 3.4z"/></svg>
+          <span>3D</span>
+        </button>
+        <button class="tool" id="btn-basemap" type="button" aria-expanded="false" aria-controls="basemap-menu">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6.2 9.2 4l5.6 2.2L21 4v13.8l-6.2 2.2-5.6-2.2L3 20V6.2zm6.2-.2v11.2l5.6 2.2V8.2L9.2 6z"/></svg>
+          <span>Basemap</span>
+        </button>
+        <button class="tool" id="btn-zoom-in" type="button">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5z"/></svg>
+          <span>Zoom in</span>
+        </button>
+        <button class="tool" id="btn-zoom-out" type="button">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 11h14v2H5v-2z"/></svg>
+          <span>Zoom out</span>
+        </button>
+        <button class="tool" id="btn-fullscreen" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h7v2H5v5H3V3zm11 0h7v7h-2V5h-5V3zM3 14h2v5h5v2H3v-7zm16 0h2v7h-7v-2h5v-5z"/></svg>
+          <span>Fullscreen</span>
+        </button>
+        <div class="tool-sep" aria-hidden="true"></div>
+        <button class="tool" id="btn-data" type="button" aria-expanded="false" aria-controls="data-menu">
+          <svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="6" rx="8" ry="3.2"/><path d="M4 6v5.2c0 1.8 3.6 3.2 8 3.2s8-1.4 8-3.2V6"/><path d="M4 11.2v5.2c0 1.8 3.6 3.2 8 3.2s8-1.4 8-3.2v-5.2"/></svg>
+          <span>Data</span>
+        </button>
+        <button class="tool active" id="btn-scale" type="button" aria-pressed="true">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10h18v4H3v-4zm2 1v2h1v-2H5zm3 0v2h2v-2H8zm4 0v2h1v-2h-1zm3 0v2h2v-2h-2zm4 0v2h1v-2h-1z"/></svg>
+          <span>Scale</span>
+        </button>
+        <button class="tool" id="btn-theme" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM11 1h2v3h-2V1zm0 19h2v3h-2v-3zM1 11h3v2H1v-2zm19 0h3v2h-3v-2zM3.8 3.8l1.4-1.4 2.1 2.1-1.4 1.4L3.8 3.8zm12.9 12.9 2.1 2.1-1.4 1.4-2.1-2.1 1.4-1.4zM3.8 20.2l2.1-2.1 1.4 1.4-2.1 2.1-1.4-1.4zm12.9-12.9 2.1-2.1 1.4 1.4-2.1 2.1-1.4-1.4z"/></svg>
+          <span>Theme</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="flyout search-flyout" id="search-menu">
+      <input type="search" id="search-input" placeholder="Room, hall, or floor" autocomplete="off" />
+      <div id="search-results"></div>
+    </div>
+
+    <div class="flyout" id="basemap-menu"></div>
+
+    <div class="flyout" id="pano-menu">
+      <div id="pano-list"></div>
+    </div>
+
+    <div class="flyout data-flyout" id="data-menu">
+      <p class="muted">Replace the plan for this session. The file must be WGS84 GeoJSON with <strong>level_id</strong>, pathway lines, and an <strong>origin</strong>.</p>
+      <div class="form-field">
+        <span class="form-label">Indoor GeoJSON</span>
+        <input type="file" id="data-file" class="sr-only" accept=".geojson,.json,application/geo+json,application/json" />
+        <label for="data-file" class="file-picker" id="data-file-picker">
+          <svg class="file-picker-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M10.4 4H4.2A2.2 2.2 0 0 0 2 6.2v11.6A2.2 2.2 0 0 0 4.2 20h15.6a2.2 2.2 0 0 0 2.2-2.2V8.4a2.2 2.2 0 0 0-2.2-2.2h-8.2L10.4 4z"/>
+          </svg>
+          <span class="file-picker-copy">
+            <strong id="data-file-name">Choose GeoJSON</strong>
+            <span>levels, units, pathways</span>
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <aside id="detail-panel">
+      <div class="detail-head">
+        <div>
+          <div class="detail-type" id="detail-type">Place</div>
+          <h3 id="detail-title"></h3>
+        </div>
+        <button class="icon-btn" id="btn-close-detail" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="detail-body" id="detail-body"></div>
+    </aside>
+
+    <div id="pano-modal">
+      <div class="pano-card" role="dialog" aria-modal="true" aria-labelledby="pano-title">
+        <div class="detail-head">
+          <div>
+            <div class="detail-type" id="pano-kicker">360 photo</div>
+            <h3 id="pano-title"></h3>
+          </div>
+          <button class="icon-btn" id="btn-close-pano" type="button" aria-label="Close 360">×</button>
+        </div>
+        <div class="pano-floor muted" id="pano-floor"></div>
+        <div id="pano-view"></div>
+      </div>
+    </div>
+
+    <div id="loadingScreen" class="loading-screen" style="display:none">
+      <div class="loading-card">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loading-text">Loading indoor map…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<svg id="liquid-glass-svg" xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="glass-distortion" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.008" numOctaves="2" seed="92" result="noise" />
+      <feGaussianBlur in="noise" stdDeviation="1.2" result="blurred" />
+      <feDisplacementMap in="SourceGraphic" in2="blurred" scale="24" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </defs>
+</svg>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three/three.module.min.js",
+      "three/addons/": "./vendor/three/addons/"
+    }
+  }
+</script>
+<script type="module">
+  import * as maplibregl from './vendor/maplibre/maplibre-gl.js';
+  maplibregl.setWorkerUrl(new URL('./vendor/maplibre/maplibre-gl-worker.js', import.meta.url).href);
+  window.maplibregl = maplibregl;
+</script>
+<script src="vendor/pannellum/pannellum.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/route.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
