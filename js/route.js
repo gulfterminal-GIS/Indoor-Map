@@ -247,7 +247,7 @@
         var b = list[i];
         var floors = Math.max(1, Math.abs(b.ordinal - a.ordinal));
         var kind = b.kind || a.kind || 'elevator';
-        var w = kind === 'stair' ? 14 + 8 * floors : 8 + 6 * floors;
+        var w = kind === 'stair' ? 14 + 8 * floors : (kind === 'escalator' ? 6 + 4 * floors : 8 + 6 * floors);
         var name = b.tname || a.tname || (kind === 'stair' ? 'Stair' : 'Elevator');
         var spec = { group: b.group, kind: kind, name: name };
         link(a, b, w, spec);
@@ -493,6 +493,17 @@
     return out;
   }
 
+  function rideText(kind) {
+    if (kind === 'stair') return 'Take the stairs';
+    if (kind === 'escalator') return 'Take the escalator';
+    return 'Take the elevator';
+  }
+
+  function rideAction(kind) {
+    if (kind === 'stair' || kind === 'escalator') return kind;
+    return 'elevator';
+  }
+
   function route(spatialObj, graph, fc, fromRef, toRef, options) {
     var from = endpoint(spatialObj, graph, fc, fromRef);
     var to = endpoint(spatialObj, graph, fc, toRef);
@@ -538,15 +549,15 @@
           prev.toFocus = b.lonlat;
           prev.focus = b.lonlat;
           prev.detail = 'to ' + destName;
-          prev.text = prev.mode === 'stair' ? 'Take the stairs' : 'Take the elevator';
+          prev.text = rideText(prev.mode);
         } else {
           steps.push({
             kind: 'transition',
-            action: edge.transition.kind === 'stair' ? 'stair' : 'elevator',
+            action: rideAction(edge.transition.kind),
             group: edge.transition.group,
             mode: edge.transition.kind,
             name: edge.transition.name,
-            text: edge.transition.kind === 'stair' ? 'Take the stairs' : 'Take the elevator',
+            text: rideText(edge.transition.kind),
             detail: 'to ' + destName,
             fromLevel: a.level_id,
             toLevel: b.level_id,

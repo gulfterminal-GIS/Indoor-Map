@@ -1,5 +1,4 @@
 import { createScene3D } from './scene3d.js';
-import { preloadCharacters } from './character.js';
 
 const FLOOR_HEIGHT = 4;
 const BASE = 1.4;
@@ -10,8 +9,8 @@ const WALL_THICK = 0.28;
 const DOOR_WIDTH = 1.6;
 const PITCH_3D = 55;
 const BEARING_3D = -18;
-const FOLLOW_ZOOM = 20.8;
-const AVATAR_KEY = 'indoor.ui.v1.avatar';
+const DRAW_MS = 8000;
+const FLOOR_GROUND = [0xF4D7A8, 0xB9D4F5, 0xC6E7C8, 0xF3C6D6];
 
 const CATEGORIES = [
   { id: 'hall', label: 'Halls', fill: '#E8F1F8', line: '#1565A8' },
@@ -19,6 +18,7 @@ const CATEGORIES = [
   { id: 'corridor', label: 'Corridors', fill: '#E7EDF4', line: '#5C6B82' },
   { id: 'restroom', label: 'Restrooms', fill: '#E7F2EA', line: '#15803D' },
   { id: 'elevator', label: 'Elevators', fill: '#E4EAF3', line: '#1B2A4A' },
+  { id: 'escalator', label: 'Escalators', fill: '#FDE7D6', line: '#C2410C' },
   { id: 'stair', label: 'Stairs', fill: '#F3EEE8', line: '#6B778C' },
   { id: 'pathway', label: 'Pathways', fill: '#1565A8', line: '#1565A8', lineOnly: true }
 ];
@@ -29,22 +29,21 @@ const state = {
   levelId: null,
   layers: {
     hall: true, room: true, corridor: true, restroom: true,
-    elevator: true, stair: true, pathway: false, labels: true
+    elevator: true, escalator: true, stair: true, pathway: false, labels: true
   },
   is3d: false,
   dockOpen: false,
   dock: 'floors',
-  tool: 'explore',
-  drawPhase: 0,
   selectedId: null,
   hoverId: null,
   endpoints: { from: null, to: null },
+  tool: null,
+  drawPhase: 0,
   route: null,
   step: 0,
   follow: true,
   vertical: 'either',
   ground: 0,
-  avatar: { character: 'boy', gait: 'walk' },
   viewer: null
 };
 
@@ -114,6 +113,19 @@ function floorOrdinal(levelId) {
 function floorRank(levelId) {
   const index = floors.findIndex((f) => f.id === levelId);
   return index < 0 ? 0 : index;
+}
+
+function floorGround(rank) {
+  const index = Math.max(0, rank || 0);
+  return FLOOR_GROUND[Math.min(index, FLOOR_GROUND.length - 1)];
+}
+
+function mixColor(base, tint, amount) {
+  const channel = (color, shift) => (color >> shift) & 255;
+  const mix = (a, b) => Math.round(a + (b - a) * amount);
+  return (mix(channel(base, 16), channel(tint, 16)) << 16)
+    | (mix(channel(base, 8), channel(tint, 8)) << 8)
+    | mix(channel(base, 0), channel(tint, 0));
 }
 
 function floorBase(rank) {
@@ -427,6 +439,14 @@ function borderRings(ring, paths) {
 
 function shellParts() {
   const parts = [];
+  const topRank = {};
+  collection.features.forEach((f) => {
+    const p = f.properties;
+    if (!p || p.feature_type !== 'level') return;
+    const key = p.building || p.level_id || '';
+    const rank = p.rank || 0;
+    if (topRank[key] == null || rank > topRank[key]) topRank[key] = rank;
+  });
   const add = (ring, extra) => {
     if (!ring || ring.length < 4) return;
     parts.push(Object.assign({ ring: ring }, extra));
@@ -440,7 +460,7 @@ function shellParts() {
       if (rank === 0) {
         add(ring, { level: p.level_id, rank: rank, kind: 'base', bottom: pad + 0.15, top: pad + BASE - 0.02, color: 0xD5DDE6 });
       }
-      add(ring, { level: p.level_id, rank: rank, kind: 'plate', bottom: z, top: z + SLAB, color: 0xFFFFFF });
+      add(ring, { level: p.level_id, rank: rank, kind: 'plate', bottom: z, top: z + SLAB, color: floorGround(rank), story: FLOOR_HEIGHT, slab: SLAB });
     });
   });
   walls.features.forEach((f) => {
@@ -465,7 +485,7 @@ function shellParts() {
     if (p.feature_type !== 'unit') return;
     const rank = p.rank || 0;
     const z = floorBase(rank) + SLAB;
-    const color = parseInt(String(categoryMeta(p.category).fill).slice(1), 16);
+    const color = mixColor(parseInt(String(categoryMeta(p.category).fill).slice(1), 16), floorGround(rank), 0.62);
     if (!pathsByLevel.has(p.level_id)) pathsByLevel.set(p.level_id, pathSegments(p.level_id));
     const doors = pathsByLevel.get(p.level_id);
     polygonRings(f).forEach((ring) => {
@@ -475,6 +495,9 @@ function shellParts() {
         rank: rank,
         kind: 'unit',
         category: p.category,
+        name: p.name || '',
+        above: rank < (topRank[p.building || p.level_id || ''] == null ? rank : topRank[p.building || p.level_id || '']),
+        rise: FLOOR_HEIGHT - UNIT_TOP,
         bottom: z + 0.01,
         top: z + UNIT_TOP,
         color: color
@@ -550,8 +573,6 @@ function loadCollection(fc, fit) {
   state.hoverId = null;
   state.endpoints.from = null;
   state.endpoints.to = null;
-  state.tool = 'explore';
-  state.drawPhase = 0;
   closeDetail();
   ensureLayers();
   scene3d.setShell(shellParts());
@@ -562,10 +583,8 @@ function loadCollection(fc, fit) {
   syncFloorUi();
   renderLayerChoices();
   renderLegend();
-  fillSelects();
   syncEndpointUi('from');
   syncEndpointUi('to');
-  updatePickUi();
   refreshLabels();
   updateStatus();
   map.setMaxBounds(null);
@@ -596,7 +615,11 @@ function syncFloorUi() {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'bookmark-pill' + (floor.id === state.levelId ? ' active' : '');
-    btn.textContent = floor.name;
+    const swatch = document.createElement('span');
+    swatch.className = 'floor-swatch';
+    swatch.style.background = '#' + floorGround(floorRank(floor.id)).toString(16).padStart(6, '0');
+    btn.appendChild(swatch);
+    btn.appendChild(document.createTextNode(floor.name));
     btn.setAttribute('aria-pressed', floor.id === state.levelId ? 'true' : 'false');
     btn.addEventListener('click', () => setFloor(floor.id, true));
     pills.appendChild(btn);
@@ -608,7 +631,8 @@ function syncFloorUi() {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'choice-btn' + (floor.id === state.levelId ? ' active' : '');
-    btn.innerHTML = '<span class="choice-copy"><strong>' + esc(floor.name) + '</strong><span>' + unitsOn(floor.id).length + ' places</span></span>';
+    const ground = '#' + floorGround(floorRank(floor.id)).toString(16).padStart(6, '0');
+    btn.innerHTML = '<span class="floor-swatch" style="background:' + ground + ';margin-top:4px"></span><span class="choice-copy"><strong>' + esc(floor.name) + '</strong><span>' + unitsOn(floor.id).length + ' places</span></span>';
     btn.addEventListener('click', () => setFloor(floor.id, true));
     list.appendChild(btn);
   });
@@ -827,6 +851,7 @@ function endpointFromFeature(feature) {
   return {
     id: feature.id,
     name: feature.properties.name,
+    building: feature.properties.building || '',
     level_id: feature.properties.level_id,
     level_name: feature.properties.level_name || floorName(feature.properties.level_id),
     x: anchor[0],
@@ -896,39 +921,203 @@ function endpointFromEvent(event) {
   };
 }
 
-function fillSelects() {
-  ['route-from', 'route-to'].forEach((id) => {
-    const sel = document.getElementById(id);
-    sel.innerHTML = '<option value="">Choose a place</option>';
-    floors.forEach((floor) => {
-      const groups = new Map();
-      unitsOn(floor.id).forEach((f) => {
-        if (f.properties.category === 'corridor') return;
-        const building = f.properties.building || 'Building';
-        if (!groups.has(building)) groups.set(building, []);
-        groups.get(building).push(f);
-      });
-      groups.forEach((list, building) => {
-        const group = document.createElement('optgroup');
-        group.label = floor.name + ' · ' + building;
-        list.forEach((f) => {
-          const opt = document.createElement('option');
-          opt.value = String(f.id);
-          opt.textContent = f.properties.name;
-          group.appendChild(opt);
-        });
-        sel.appendChild(group);
-      });
+function floorAliases() {
+  const list = [];
+  floors.forEach((floor) => {
+    list.push({ id: floor.id, key: String(floor.name || '').toLowerCase() });
+    list.push({ id: floor.id, key: String(floor.id || '').toLowerCase() });
+  });
+  [
+    ['L0', 'ground floor'],
+    ['L1', 'first floor'], ['L1', '1st floor'],
+    ['L2', 'second floor'], ['L2', '2nd floor'],
+    ['L3', 'third floor'], ['L3', '3rd floor']
+  ].forEach((pair) => list.push({ id: pair[0], key: pair[1] }));
+  return list.filter((item) => item.key).sort((a, b) => b.key.length - a.key.length);
+}
+
+function queryParts(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return { levelId: null, rest: '' };
+  const aliases = floorAliases();
+  for (let i = 0; i < aliases.length; i++) {
+    const key = aliases[i].key;
+    const at = q.indexOf(key);
+    if (at < 0) continue;
+    const before = at === 0 || q.charAt(at - 1) === ' ';
+    const after = at + key.length === q.length || q.charAt(at + key.length) === ' ';
+    if (!before || !after) continue;
+    const rest = (q.slice(0, at) + ' ' + q.slice(at + key.length)).replace(/\s+/g, ' ').trim();
+    return { levelId: aliases[i].id, rest: rest };
+  }
+  return { levelId: null, rest: q };
+}
+
+function placeBlob(p) {
+  return (p.name + ' ' + (p.building || '') + ' ' + (p.level_name || '') + ' ' + (p.level_id || '')).toLowerCase();
+}
+
+function capPlaces(list, floorId) {
+  if (floorId) return list.slice(0, 16);
+  const buckets = new Map();
+  list.forEach((f) => {
+    const key = (f.properties.building || '') + '|' + f.properties.level_id;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(f);
+  });
+  const keys = Array.from(buckets.keys()).sort((a, b) => {
+    const aa = buckets.get(a)[0].properties;
+    const bb = buckets.get(b)[0].properties;
+    const ac = aa.level_id === state.levelId ? 0 : 1;
+    const bc = bb.level_id === state.levelId ? 0 : 1;
+    if (ac !== bc) return ac - bc;
+    const rank = floorRank(aa.level_id) - floorRank(bb.level_id);
+    if (rank) return rank;
+    return (aa.building || '').localeCompare(bb.building || '');
+  });
+  const out = [];
+  keys.forEach((key) => buckets.get(key).slice(0, 4).forEach((f) => out.push(f)));
+  return out.slice(0, 24);
+}
+
+function routePlaces(query, floorId) {
+  if (!collection) return [];
+  const parsed = queryParts(query);
+  const levelId = floorId || parsed.levelId;
+  const rest = floorId && parsed.levelId && parsed.levelId !== floorId ? query.trim().toLowerCase() : parsed.rest;
+  const places = collection.features.filter((f) => {
+    const p = f.properties || {};
+    if (p.feature_type !== 'unit' || p.category === 'corridor') return false;
+    if (levelId && p.level_id !== levelId) return false;
+    if (!rest) return true;
+    return placeBlob(p).includes(rest);
+  });
+  places.sort((a, b) => {
+    const ap = a.properties;
+    const bp = b.properties;
+    if (!levelId) {
+      const af = ap.level_id === state.levelId ? 0 : 1;
+      const bf = bp.level_id === state.levelId ? 0 : 1;
+      if (af !== bf) return af - bf;
+    }
+    const rank = floorRank(ap.level_id) - floorRank(bp.level_id);
+    if (rank) return rank;
+    const building = (ap.building || '').localeCompare(bp.building || '');
+    if (building) return building;
+    const as = rest && (ap.name || '').toLowerCase().startsWith(rest) ? 0 : 1;
+    const bs = rest && (bp.name || '').toLowerCase().startsWith(rest) ? 0 : 1;
+    if (as !== bs) return as - bs;
+    return (ap.name || '').localeCompare(bp.name || '');
+  });
+  return capPlaces(places, levelId);
+}
+
+let placeTimer = 0;
+const searchFloor = { from: '', to: '' };
+
+function hidePlaceResults() {
+  window.clearTimeout(placeTimer);
+  ['from-results', 'to-results'].forEach((id) => {
+    const host = document.getElementById(id);
+    host.hidden = true;
+    host.innerHTML = '';
+  });
+}
+
+function renderPlaceResults(which) {
+  const input = document.getElementById(which === 'from' ? 'from-search' : 'to-search');
+  const host = document.getElementById(which === 'from' ? 'from-results' : 'to-results');
+  document.getElementById(which === 'from' ? 'to-results' : 'from-results').hidden = true;
+  const floorId = searchFloor[which];
+  const hits = routePlaces(input.value, floorId);
+  host.innerHTML = '';
+  host.hidden = false;
+  const chips = document.createElement('div');
+  chips.className = 'place-floors';
+  const choices = [{ id: '', name: 'All' }].concat(floors.map((floor) => ({ id: floor.id, name: floor.name })));
+  choices.forEach((floor) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'place-floor' + (floor.id === floorId ? ' active' : '');
+    chip.textContent = floor.name;
+    chip.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      searchFloor[which] = floor.id;
+      renderPlaceResults(which);
     });
+    chips.appendChild(chip);
+  });
+  host.appendChild(chips);
+  if (!hits.length) {
+    const empty = document.createElement('div');
+    empty.className = 'place-empty';
+    empty.textContent = floorId ? 'No places on this floor.' : 'No places match.';
+    host.appendChild(empty);
+    return;
+  }
+  let group = '';
+  hits.forEach((f) => {
+    const where = (f.properties.building || 'Building') + ' · ' + (f.properties.level_name || floorName(f.properties.level_id));
+    if (where !== group) {
+      group = where;
+      const label = document.createElement('div');
+      label.className = 'place-floor-label';
+      label.textContent = where;
+      host.appendChild(label);
+    }
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'place-hit';
+    row.innerHTML = '<strong>' + esc(f.properties.name) + '</strong>';
+    row.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      const ep = endpointFromFeature(f);
+      setEndpoint(which, ep);
+      hidePlaceResults();
+      focusEndpoint(ep);
+      if (which === 'from' && !state.endpoints.to) document.getElementById('to-search').focus();
+    });
+    host.appendChild(row);
+  });
+}
+
+function bindPlaceSearch(which) {
+  const input = document.getElementById(which === 'from' ? 'from-search' : 'to-search');
+  input.addEventListener('focus', () => {
+    window.clearTimeout(placeTimer);
+    renderPlaceResults(which);
+  });
+  input.addEventListener('input', () => {
+    if (!input.value.trim() && state.endpoints[which]) setEndpoint(which, null);
+    renderPlaceResults(which);
+  });
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      hidePlaceResults();
+      input.blur();
+      return;
+    }
+    if (event.key !== 'Enter') return;
+    const hit = document.querySelector('#' + (which === 'from' ? 'from-results' : 'to-results') + ' .place-hit');
+    if (hit) hit.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    event.preventDefault();
+  });
+  input.addEventListener('blur', () => {
+    const ep = state.endpoints[which];
+    const typed = input.value;
+    placeTimer = window.setTimeout(() => {
+      hidePlaceResults();
+      if (state.endpoints[which] === ep && input.value === typed) syncEndpointUi(which);
+    }, 160);
   });
 }
 
 function syncEndpointUi(which) {
   const ep = state.endpoints[which];
-  const sel = document.getElementById(which === 'from' ? 'route-from' : 'route-to');
+  const input = document.getElementById(which === 'from' ? 'from-search' : 'to-search');
   const note = document.getElementById(which === 'from' ? 'from-note' : 'to-note');
-  sel.value = ep && ep.id != null ? String(ep.id) : '';
-  note.textContent = ep && ep.id == null ? ep.name + ' · ' + ep.level_name : '';
+  input.value = ep ? ep.name : '';
+  note.textContent = ep ? [ep.building, ep.level_name].filter(Boolean).join(' · ') : '';
 }
 
 function setEndpoint(which, ep, opts) {
@@ -936,6 +1125,33 @@ function setEndpoint(which, ep, opts) {
   syncEndpointUi(which);
   updateStatus();
   if (!opts || !opts.skipRoute) maybeRoute();
+}
+
+function focusEndpoint(ep) {
+  if (!ep || !ep.level_id || (state.endpoints.from && state.endpoints.to)) return;
+  if (ep.level_id !== state.levelId) {
+    state.levelId = ep.level_id;
+    applyFilters();
+    syncFloorUi();
+    refreshLabels();
+    updateStatus();
+  }
+  if (ep.focus) flyTo(ep.focus, null, ep.level_id);
+}
+
+function setTool(tool) {
+  const next = state.tool === tool ? null : tool;
+  state.tool = next;
+  state.drawPhase = 0;
+  if (!next && scene3d) scene3d.setDraft(null);
+  document.querySelectorAll('[data-tool]').forEach((btn) => {
+    const on = btn.dataset.tool === next;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  if (next === 'from') IndoorUI.toast('Click the start.');
+  else if (next === 'to') IndoorUI.toast('Click the destination.');
+  else if (next === 'draw') IndoorUI.toast('Click the start, then the destination.');
 }
 
 function routeRef(ep) {
@@ -966,9 +1182,9 @@ function clearRoute() {
   state.route = null;
   state.step = 0;
   if (scene3d) scene3d.clearRoute();
+  if (map) map.stop();
   renderSteps();
   updateStatus();
-  syncPlayUi();
 }
 
 function buildPlan(result) {
@@ -1017,40 +1233,46 @@ function showRoute(result) {
   startPlayback();
 }
 
+let routeStarted = 0;
+
+function frameRoute(levelId, duration) {
+  if (!state.route || !map) return;
+  const lines = state.route.segments.filter((s) => s.level_id === levelId).map((s) => s.coordinates);
+  const bounds = boundsOfLines(lines);
+  if (!bounds) return;
+  const bearing = state.is3d ? BEARING_3D : map.getBearing();
+  const pitch = targetPitch();
+  const elev = levelElev(levelId);
+  const shifted = cameraCenter(bounds[0], elev, pitch, bearing);
+  const dx = shifted[0] - bounds[0][0];
+  const dy = shifted[1] - bounds[0][1];
+  const camera = map.cameraForBounds(
+    [[bounds[0][0] + dx, bounds[0][1] + dy], [bounds[1][0] + dx, bounds[1][1] + dy]],
+    { padding: cameraPadding(), maxZoom: 19.8, bearing: bearing, pitch: pitch }
+  );
+  if (!camera) return;
+  state._lastElev = elev;
+  map.easeTo(Object.assign({}, camera, {
+    duration: duration == null ? DRAW_MS : duration,
+    essential: true,
+    easing: (t) => 1 - Math.pow(1 - t, 3)
+  }));
+}
+
 function startPlayback() {
   if (!state.route) return;
-  const token = ++playToken;
+  playToken += 1;
   scene3d.reset();
+  scene3d.play();
   if (state.levelId !== state.route.from.level_id) setFloor(state.route.from.level_id, false);
-  state.follow = true;
-  syncPlayUi();
+  state.follow = false;
+  routeStarted = performance.now();
   if (reducedMotion()) {
     scene3d.finish();
-    const lines = state.route.segments.filter((s) => s.level_id === state.levelId).map((s) => s.coordinates);
-    const bounds = boundsOfLines(lines);
-    if (bounds) fitShifted(bounds, levelElev(state.levelId), map.getBearing());
+    frameRoute(state.route.to.level_id, 0);
     return;
   }
-  const from = state.route.from;
-  const pitch = state.is3d ? 60 : 0;
-  state._lastElev = levelElev(from.level_id);
-  map.easeTo({
-    center: cameraCenter(from.lonlat, levelElev(from.level_id), pitch, map.getBearing()),
-    zoom: FOLLOW_ZOOM,
-    pitch,
-    padding: cameraPadding(),
-    duration: 900,
-    essential: true
-  });
-  let started = false;
-  const begin = () => {
-    if (started || token !== playToken) return;
-    started = true;
-    scene3d.play();
-    syncPlayUi();
-  };
-  map.once('moveend', begin);
-  setTimeout(begin, 1100);
+  frameRoute(state.route.from.level_id, DRAW_MS);
 }
 
 function followCamera(info) {
@@ -1062,21 +1284,6 @@ function followCamera(info) {
   map.jumpTo({ center: [c.lng + (target[0] - c.lng) * k, c.lat + (target[1] - c.lat) * k] });
 }
 
-function syncPlayUi() {
-  const has = !!state.route;
-  const play = document.getElementById('btn-play');
-  const replay = document.getElementById('btn-replay');
-  const skip = document.getElementById('btn-skip');
-  play.disabled = !has;
-  replay.disabled = !has;
-  skip.disabled = !has || (scene3d && scene3d.isDone());
-  if (!has || !scene3d) {
-    play.textContent = 'Play';
-    return;
-  }
-  play.textContent = scene3d.isPlaying() ? 'Pause' : (scene3d.isDone() ? 'Play again' : 'Play');
-}
-
 function renderSteps() {
   const host = document.getElementById('route-steps');
   const empty = document.getElementById('route-empty');
@@ -1085,9 +1292,11 @@ function renderSteps() {
   if (!state.route) {
     summary.textContent = '';
     empty.hidden = false;
+    document.getElementById('btn-replay').disabled = true;
     return;
   }
   empty.hidden = true;
+  document.getElementById('btn-replay').disabled = false;
   summary.textContent = Math.round(state.route.walkMeters) + ' m · ' + state.route.from.name + ' to ' + state.route.to.name;
   state.route.steps.forEach((step, index) => {
     const btn = document.createElement('button');
@@ -1115,6 +1324,7 @@ function stepIcon(action) {
     'sharp-right': '<path d="M5.8 14.2h7.4V8.6L10.8 10.8l1.4 1.5 5.6-5.5-5.6-5.5-1.4 1.5 2.4 2.2v4.2H5.8v5z"/>',
     uturn: '<path d="M8.2 20.2V11c0-2.6 1.8-4.4 4.6-4.4 2.5 0 4.2 1.5 4.2 3.8h-2.4c0-1-.7-1.6-1.8-1.6-1.3 0-2.1.8-2.1 2.2v9.2H8.2zm6.2-6.2 3.8-3.4-3.8-3.4v2.2h-1.2v2.4h1.2v2.2z"/>',
     elevator: '<path d="M7 3.5h10v17H7v-17zm2.2 2.2v12.6h5.6V5.7H9.2zm1.2 2.1 1.6-1.8 1.6 1.8h-3.2zm0 6.4h3.2l-1.6 1.8-1.6-1.8z"/>',
+    escalator: '<path d="M3.5 18.5h5.2l3.2-4.2h3.6l3.4-4.6H21v2.2h-1.2l-3.2 4.4h-3.8l-3.2 4.2H3.5v-2zm11.2-8.8 1.5-1.6 2.2 2.1-1.5 1.6-2.2-2.1z"/>',
     stair: '<path d="M4 19.5h5.2v-4.2h4.2V11h4.6V6.8H20V4.6h-4.2v4.2h-4.2v4.3H7V17.3H4v2.2z"/>',
     arrive: '<path d="M6.5 20.5V4.2h1.8v2.2h8.2l-1.6 3.3 1.6 3.3H8.3v7.5H6.5z"/>'
   };
@@ -1143,29 +1353,7 @@ function goToStep(index) {
     refreshLabels();
   }
   updateStatus();
-  syncPlayUi();
   if (step.focus) flyTo(step.focus, Math.max(map.getZoom(), 19.8), step.level_id);
-}
-
-function updatePickUi() {
-  document.getElementById('pick-from').classList.toggle('active', state.tool === 'from');
-  document.getElementById('pick-to').classList.toggle('active', state.tool === 'to');
-  document.getElementById('pick-draw').classList.toggle('active', state.tool === 'draw');
-  if (map) map.getCanvas().style.cursor = state.tool === 'explore' ? '' : 'crosshair';
-}
-
-function setTool(tool) {
-  if (state.tool === tool) {
-    state.tool = 'explore';
-    state.drawPhase = 0;
-  } else {
-    state.tool = tool;
-    state.drawPhase = 0;
-    if (tool === 'from') IndoorUI.toast('Click the start on the map');
-    if (tool === 'to') IndoorUI.toast('Click the destination on the map');
-    if (tool === 'draw') IndoorUI.toast('Click the start point');
-  }
-  updatePickUi();
 }
 
 function updateStatus() {
@@ -1177,10 +1365,8 @@ function updateStatus() {
     return;
   }
   const modes = new Set(state.route.steps.filter((s) => s.kind === 'transition').map((s) => s.mode));
-  let via = '';
-  if (modes.has('elevator') && modes.has('stair')) via = ' · elevator and stair';
-  else if (modes.has('elevator')) via = ' · elevator';
-  else if (modes.has('stair')) via = ' · stair';
+  const viaNames = ['escalator', 'elevator', 'stair'].filter((mode) => modes.has(mode));
+  const via = viaNames.length ? ' · ' + viaNames.join(' and ') : '';
   document.getElementById('stat-route').textContent = Math.round(state.route.walkMeters) + ' m' + via;
 }
 
@@ -1211,33 +1397,9 @@ function openDock(name, keepOpen) {
 
 function closeDock() {
   state.dockOpen = false;
+  setTool(null);
   document.getElementById('dock').classList.remove('open');
   syncTools();
-}
-
-function loadAvatarPrefs() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(AVATAR_KEY) || '{}');
-    if (raw.character === 'girl' || raw.character === 'boy') state.avatar.character = raw.character;
-    if (raw.gait === 'run' || raw.gait === 'walk') state.avatar.gait = raw.gait;
-  } catch (err) { /* ignore */ }
-}
-
-function saveAvatarPrefs() {
-  try { localStorage.setItem(AVATAR_KEY, JSON.stringify(state.avatar)); } catch (err) { /* ignore */ }
-}
-
-function syncAvatarUi() {
-  document.querySelectorAll('[data-avatar]').forEach((btn) => {
-    const on = btn.dataset.avatar === state.avatar.character;
-    btn.classList.toggle('active', on);
-    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-  });
-  document.querySelectorAll('[data-gait]').forEach((btn) => {
-    const on = btn.dataset.gait === state.avatar.gait;
-    btn.classList.toggle('active', on);
-    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-  });
 }
 
 function setTiltControls(on) {
@@ -1328,9 +1490,6 @@ function openPano(feature) {
     IndoorUI.toast('No 360 image for this place.');
     return;
   }
-  document.getElementById('pano-kicker').textContent = feature.properties.image ? '360 photo' : 'Schematic 360';
-  document.getElementById('pano-title').textContent = feature.properties.name || '360';
-  document.getElementById('pano-floor').textContent = feature.properties.level_name || floorName(feature.properties.level_id);
   document.getElementById('pano-modal').classList.add('open');
   const src = feature.properties.image || schematicUrl(feature);
   requestAnimationFrame(() => {
@@ -1343,10 +1502,22 @@ function openPano(feature) {
       panorama: src,
       autoLoad: true,
       compass: false,
-      hfov: 110,
-      showControls: true,
-      mouseZoom: true
+      hfov: 90,
+      minHfov: 30,
+      maxHfov: 110,
+      minPitch: -80,
+      maxPitch: 80,
+      pitch: 0,
+      showControls: false,
+      showZoomCtrl: false,
+      showFullscreenCtrl: false,
+      mouseZoom: true,
+      doubleClickZoom: true,
+      draggable: true,
+      friction: 0.08,
+      backgroundColor: [20, 32, 56]
     });
+    state.viewer.resize();
   });
 }
 
@@ -1374,8 +1545,8 @@ function renderPanoMenu() {
   list.forEach((f) => {
     const row = document.createElement('button');
     row.type = 'button';
-    row.className = 'flyout-item';
-    row.innerHTML = '<span>' + esc(f.properties.name) + '</span><span class="hit-kind">' + esc(f.properties.level_name || '') + '</span>';
+    row.className = 'flyout-item' + (String(f.id) === String(state.selectedId) ? ' active' : '');
+    row.innerHTML = '<span>' + esc(f.properties.name) + '</span><span class="hit-kind">' + esc((f.properties.building ? f.properties.building + ' · ' : '') + (f.properties.level_name || '')) + '</span>';
     row.addEventListener('click', () => {
       IndoorUI.closeFlyouts();
       selectFeature(f, true);
@@ -1426,8 +1597,6 @@ function onSearch(query) {
     const where = (f.properties.building || 'Building') + ' · ' + (f.properties.level_name || '');
     row.innerHTML = '<span>' + esc(f.properties.name) + '</span><span class="hit-kind">' + esc(where) + '</span>';
     row.addEventListener('click', () => {
-      state.tool = 'explore';
-      updatePickUi();
       selectFeature(f, true);
       IndoorUI.closeFlyouts();
     });
@@ -1444,45 +1613,39 @@ function setHover(id) {
 function bindMap() {
   map.on('click', (event) => {
     IndoorUI.closeFlyouts();
+    hidePlaceResults();
     if (!collection) return;
-    if (state.tool === 'from' || state.tool === 'to' || state.tool === 'draw') {
-      if (state.tool === 'draw') {
-        const clicked = floorPoint(event);
-        console.log({
-          type: 'Feature',
-          properties: {
-            role: state.drawPhase === 0 ? 'start' : 'end',
-            level_id: state.levelId,
-            level_name: floorName(state.levelId)
-          },
-          geometry: { type: 'Point', coordinates: [clicked[0], clicked[1]] }
-        });
-      }
+    if (state.tool) {
       const ep = endpointFromEvent(event);
       if (!ep) {
-        IndoorUI.toast('Click a place on this floor, or the corridor.');
+        IndoorUI.toast('Click a place on this floor.');
         return;
       }
-      if (state.tool === 'from' || state.tool === 'to') {
-        const which = state.tool;
-        state.tool = 'explore';
-        updatePickUi();
-        setEndpoint(which, ep);
+      if (state.tool === 'from') {
+        setEndpoint('from', ep);
+        setTool(null);
+        focusEndpoint(ep);
         return;
       }
-      if (state.drawPhase === 0) {
+      if (state.tool === 'to') {
+        setEndpoint('to', ep);
+        setTool(null);
+        focusEndpoint(ep);
+        return;
+      }
+      if (!state.drawPhase) {
         setEndpoint('to', null, { skipRoute: true });
         setEndpoint('from', ep, { skipRoute: true });
         clearRoute();
-        scene3d.setDraft({ level: ep.level_id, elev: levelElev(ep.level_id), xy: scene3d.toScene(ep.focus) });
+        scene3d.setDraft({ level: ep.level_id, xy: scene3d.toScene(ep.focus), elev: levelElev(ep.level_id) });
         state.drawPhase = 1;
-        IndoorUI.toast('Click the destination');
+        IndoorUI.toast('Click the destination.');
+        focusEndpoint(ep);
         return;
       }
-      state.tool = 'explore';
-      state.drawPhase = 0;
-      updatePickUi();
       setEndpoint('to', ep);
+      state.drawPhase = 0;
+      setTool(null);
       return;
     }
     const hit = unitAt(floorPoint(event), false);
@@ -1494,13 +1657,9 @@ function bindMap() {
     const lonlat = floorPoint(event);
     const meters = spatial.toMeters(lonlat[0], lonlat[1]);
     document.getElementById('stat-coords').textContent = meters[0].toFixed(1) + ' m, ' + meters[1].toFixed(1) + ' m';
-    if (state.tool !== 'explore') {
-      map.getCanvas().style.cursor = 'crosshair';
-      return;
-    }
     const hit = unitAt(lonlat, false);
     const id = hit ? hit.id : null;
-    map.getCanvas().style.cursor = id != null ? 'pointer' : '';
+    map.getCanvas().style.cursor = state.tool ? 'crosshair' : (id != null ? 'pointer' : '');
     setHover(id);
   });
 
@@ -1533,11 +1692,7 @@ function bindChrome() {
   document.getElementById('btn-search').addEventListener('click', () => IndoorUI.setFlyoutOpen('search-menu'));
   document.getElementById('btn-data').addEventListener('click', () => IndoorUI.setFlyoutOpen('data-menu'));
   document.getElementById('btn-pano').addEventListener('click', () => {
-    const selected = featureById(state.selectedId);
-    if (selected && hasPano(selected)) {
-      openPano(selected);
-      return;
-    }
+    closePano();
     renderPanoMenu();
     IndoorUI.setFlyoutOpen('pano-menu');
   });
@@ -1569,19 +1724,15 @@ function bindChrome() {
     IndoorUI.applyTheme(next);
   });
   document.getElementById('btn-close-detail').addEventListener('click', closeDetail);
-  document.getElementById('btn-close-pano').addEventListener('click', closePano);
-  document.getElementById('pano-modal').addEventListener('click', (event) => {
-    if (event.target.id === 'pano-modal') closePano();
+  document.getElementById('btn-pano-back').addEventListener('click', () => {
+    closePano();
+    renderPanoMenu();
+    IndoorUI.setFlyoutOpen('pano-menu', true);
   });
+  document.getElementById('btn-pano-clear').addEventListener('click', closePano);
   document.getElementById('search-input').addEventListener('input', (event) => onSearch(event.target.value));
-  document.getElementById('route-from').addEventListener('change', (event) => {
-    const feature = featureById(event.target.value);
-    setEndpoint('from', feature ? endpointFromFeature(feature) : null);
-  });
-  document.getElementById('route-to').addEventListener('change', (event) => {
-    const feature = featureById(event.target.value);
-    setEndpoint('to', feature ? endpointFromFeature(feature) : null);
-  });
+  bindPlaceSearch('from');
+  bindPlaceSearch('to');
   document.querySelectorAll('[data-vertical]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.vertical = btn.dataset.vertical;
@@ -1608,58 +1759,21 @@ function bindChrome() {
     syncEndpointUi('to');
     maybeRoute();
   });
+  document.querySelectorAll('[data-tool]').forEach((btn) => {
+    btn.addEventListener('click', () => setTool(btn.dataset.tool));
+  });
+  document.getElementById('btn-replay').addEventListener('click', () => {
+    if (!state.route) {
+      IndoorUI.toast('Get directions first.');
+      return;
+    }
+    startPlayback();
+  });
   document.getElementById('btn-clear-route').addEventListener('click', () => {
+    setTool(null);
     setEndpoint('from', null, { skipRoute: true });
     setEndpoint('to', null, { skipRoute: true });
     clearRoute();
-    state.tool = 'explore';
-    state.drawPhase = 0;
-    updatePickUi();
-  });
-  document.getElementById('pick-from').addEventListener('click', () => setTool('from'));
-  document.getElementById('pick-to').addEventListener('click', () => setTool('to'));
-  document.getElementById('pick-draw').addEventListener('click', () => {
-    if (state.tool === 'draw') scene3d.setDraft(null);
-    setTool('draw');
-  });
-
-  document.querySelectorAll('[data-avatar]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      state.avatar.character = btn.dataset.avatar;
-      scene3d.setCharacter(state.avatar.character);
-      saveAvatarPrefs();
-      syncAvatarUi();
-    });
-  });
-  document.querySelectorAll('[data-gait]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      state.avatar.gait = btn.dataset.gait;
-      scene3d.setGait(state.avatar.gait);
-      saveAvatarPrefs();
-      syncAvatarUi();
-    });
-  });
-  document.getElementById('btn-play').addEventListener('click', () => {
-    if (!state.route) return;
-    if (scene3d.isPlaying()) {
-      scene3d.pause();
-    } else if (scene3d.isDone()) {
-      startPlayback();
-      return;
-    } else {
-      state.follow = true;
-      scene3d.play();
-    }
-    syncPlayUi();
-  });
-  document.getElementById('btn-replay').addEventListener('click', startPlayback);
-  document.getElementById('btn-skip').addEventListener('click', () => {
-    playToken += 1;
-    scene3d.finish();
-    const lines = state.route.segments.filter((s) => s.level_id === state.route.to.level_id).map((s) => s.coordinates);
-    const bounds = boundsOfLines(lines);
-    if (bounds) fitShifted(bounds, levelElev(state.route.to.level_id), map.getBearing());
-    else flyTo(state.route.to.lonlat, null, state.route.to.level_id);
   });
 
   document.getElementById('data-file').addEventListener('change', (event) => {
@@ -1682,6 +1796,7 @@ function bindChrome() {
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
     if (document.getElementById('pano-modal').classList.contains('open')) {
+      event.preventDefault();
       closePano();
       return;
     }
@@ -1952,7 +2067,6 @@ function syncGround() {
 
 function boot() {
   IndoorUI.bootTheme();
-  loadAvatarPrefs();
   prepareStyle(BASEMAPS[0].style).catch(() => BASEMAPS[0].style).then(startMap);
 }
 
@@ -1979,17 +2093,18 @@ function startMap(style) {
 
   scene3d = createScene3D(map, {
     labelHost: document.getElementById('label-layer'),
-    onLevel: (levelId) => setFloor(levelId, false),
+    onLevel: (levelId) => {
+      setFloor(levelId, false);
+      if (!scene3d.isPlaying() || reducedMotion()) return;
+      const left = Math.max(900, DRAW_MS - (performance.now() - routeStarted));
+      frameRoute(levelId, left);
+    },
     onStep: (index) => highlightStep(index),
     onMove: followCamera,
     onDone: (info) => {
-      syncPlayUi();
       if (!info.skipped && state.route) IndoorUI.toast('Arrived at ' + state.route.to.name);
     }
   });
-  scene3d.setCharacter(state.avatar.character);
-  scene3d.setGait(state.avatar.gait);
-  syncAvatarUi();
 
   bindChrome();
   bindMap();
@@ -2004,7 +2119,6 @@ function startMap(style) {
   Promise.all([ready, data]).then((pair) => {
     loadCollection(pair[1], false);
     frameBuilding();
-    preloadCharacters();
   }).catch((err) => {
     console.error(err);
     showLoaderError('Could not load the indoor plan.');

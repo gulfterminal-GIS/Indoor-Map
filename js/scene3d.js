@@ -1,8 +1,6 @@
 import * as THREE from 'three';
-import { createCharacter, CHARACTER_HEIGHT } from './character.js';
 
-const SPEED = { walk: 3.2, run: 6.8 };
-const RIDE_SECONDS = 1.9;
+const DRAW_SECONDS = 8;
 const TRAIL_Z = 0.06;
 const PIN_Z = 0.08;
 
@@ -125,11 +123,6 @@ function ribbon(pts, width, z) {
   return geometry;
 }
 
-function smooth(x) {
-  const t = Math.max(0, Math.min(1, x));
-  return t * t * (3 - 2 * t);
-}
-
 function lerpAngle(a, b, t) {
   let d = ((b - a + Math.PI) % (Math.PI * 2)) - Math.PI;
   if (d < -Math.PI) d += Math.PI * 2;
@@ -170,27 +163,78 @@ export function createScene3D(map, options) {
   const pinGroup = new THREE.Group();
   world.add(siteGroup, shellGroup, pathGroup, routeGroup, pinGroup);
 
-  const avatar = new THREE.Group();
-  const facing = new THREE.Group();
-  facing.rotation.x = Math.PI / 2;
-  avatar.add(facing);
-  const shadow = new THREE.Mesh(DISC, MAT.shadow);
-  shadow.renderOrder = 3;
-  world.add(avatar, shadow);
-  avatar.visible = false;
-  shadow.visible = false;
-
-  let character = null;
-  let characterKind = 'boy';
-
   let activeLevel = null;
   let shellRank = 0;
   let solid = false;
   let shellCats = null;
+  let shellSelected = null;
+  let shellHover = null;
+  let escalatorLive = false;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function makeTex(draw) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const g = canvas.getContext('2d');
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, 128, 128);
+    draw(g);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.anisotropy = 8;
+    if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  const TEX = {
+    tile: makeTex((g) => {
+      g.strokeStyle = 'rgba(70, 84, 102, 0.28)';
+      g.lineWidth = 3;
+      g.strokeRect(1.5, 1.5, 125, 125);
+    }),
+    soft: makeTex((g) => {
+      for (let i = 0; i < 16; i++) {
+        g.fillStyle = 'rgba(60, 72, 90, 0.06)';
+        g.beginPath();
+        g.ellipse((i * 37) % 128, (i * 53) % 128, 20, 12, i, 0, Math.PI * 2);
+        g.fill();
+      }
+    }),
+    plaster: makeTex((g) => {
+      for (let i = 0; i < 280; i++) {
+        const v = 226 + (i * 17) % 28;
+        g.fillStyle = 'rgba(' + v + ',' + v + ',' + v + ',0.45)';
+        g.fillRect((i * 47) % 128, (i * 19) % 128, 2, 2);
+      }
+    }),
+    metal: makeTex((g) => {
+      g.strokeStyle = 'rgba(70, 82, 96, 0.35)';
+      g.lineWidth = 2;
+      for (let i = -4; i < 8; i++) {
+        g.beginPath();
+        g.moveTo(i * 32, 0);
+        g.lineTo(i * 32 + 128, 128);
+        g.stroke();
+      }
+    })
+  };
+
+  const FIN = {
+    glass: basic(0xD7E6F2, { transparent: true, opacity: 0.22, depthWrite: false }),
+    mullion: basic(0x2A3546),
+    spandrel: basic(0xE4EBF3),
+    kick: basic(0x9AA6B4),
+    tread: basic(0xE4EAF0),
+    landing: basic(0x8B97A4),
+    skirt: basic(0x1B2330),
+    rail: basic(0x121820),
+    yellow: basic(0xE2B43A)
+  };
   let pathwaysOn = false;
   let pathLines = [];
   let trailWidth = 0.7;
-  let charScale = 1;
   let draft = null;
   let labels = [];
 
@@ -199,7 +243,9 @@ export function createScene3D(map, options) {
     leg: 0,
     playing: false,
     done: false,
-    gait: 'walk',
+    elapsed: 0,
+    total: 0,
+    announced: -1,
     level: null,
     x: 0,
     y: 0,
@@ -282,20 +328,13 @@ export function createScene3D(map, options) {
 
   function applySizes() {
     const mpp = metersPerPixel();
-    charScale = Math.max(1, Math.min(2.6, (36 * mpp) / CHARACTER_HEIGHT));
     const width = Math.max(0.5, Math.min(2.4, 7 * mpp));
     if (Math.abs(width - trailWidth) / trailWidth > 0.08) {
       trailWidth = width;
       rebuildTrails();
       rebuildPaths();
     }
-    const s = charScale * pb.size;
-    avatar.scale.setScalar(Math.max(0.0001, s));
-    avatar.position.set(pb.x, pb.y, pb.z);
-    avatar.rotation.z = pb.heading + Math.PI / 2;
-    shadow.position.set(pb.x, pb.y, pb.z + 0.03);
-    shadow.scale.setScalar(Math.max(0.0001, 0.34 * s));
-    const pinScale = Math.max(1, charScale * 0.9);
+    const pinScale = Math.max(1, Math.min(2.3, 18 * mpp));
     pinGroup.children.forEach((pin) => {
       pin.scale.setScalar(pinScale);
     });
@@ -414,17 +453,19 @@ export function createScene3D(map, options) {
         const above = solid && d.rank > shellRank;
         const below = solid && d.rank < shellRank;
         m.visible = solid ? !above : d.rank === shellRank;
-        m.material.color.set(below ? 0xB9C4D2 : 0xFFFFFF);
-        m.material.opacity = below ? 0.45 : 1;
+        m.material.color.set(d.color == null ? 0xFFFFFF : d.color);
+        m.material.opacity = below ? 0.78 : 1;
         m.material.transparent = below;
         m.material.depthWrite = !below;
         m.material.needsUpdate = true;
+        applySkin(m);
         return;
       }
       if (d.kind === 'wall') {
         const catOn = !d.category || !shellCats || shellCats[d.category] !== false;
         m.visible = solid && d.level === activeLevel && catOn;
         m.material.color.set(0xB4C0CF);
+        applySkin(m);
         return;
       }
       if (d.kind === 'border') {
@@ -432,8 +473,19 @@ export function createScene3D(map, options) {
         m.visible = !solid && d.level === activeLevel && catOn;
         return;
       }
+      if (d.kind === 'facade') {
+        m.visible = solid && (d.rank || 0) <= shellRank;
+        return;
+      }
+      if (d.kind === 'machine') {
+        const catOn = !d.category || !shellCats || shellCats[d.category] !== false;
+        m.visible = solid && (d.rank || 0) <= shellRank && catOn;
+        return;
+      }
       const catOn = !d.category || !shellCats || shellCats[d.category] !== false;
       m.visible = d.level === activeLevel && catOn;
+      if (m.material && m.material.color) m.material.color.set(unitColor(d));
+      applySkin(m);
     });
     pathGroup.children.forEach((m) => { m.visible = pathwaysOn && m.userData.level === activeLevel; });
     routeGroup.children.forEach((m) => {
@@ -442,9 +494,6 @@ export function createScene3D(map, options) {
       else m.visible = onLevel;
     });
     pinGroup.children.forEach((m) => { m.visible = m.userData.level === activeLevel; });
-    const show = !!pb.plan && pb.level === activeLevel;
-    avatar.visible = show;
-    shadow.visible = show;
   }
 
   function surfaceZ(lngLat) {
@@ -663,8 +712,299 @@ export function createScene3D(map, options) {
     map.triggerRepaint();
   }
 
+  function paintUVs(geo, tile) {
+    const pos = geo.attributes.position;
+    const uv = new Float32Array(pos.count * 2);
+    const n = tile || 1;
+    for (let i = 0; i < pos.count; i++) {
+      uv[i * 2] = pos.getX(i) / n;
+      uv[i * 2 + 1] = pos.getY(i) / n;
+    }
+    geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  }
+
+  function surfaceTexture(part) {
+    if (part.kind === 'plate') return { map: TEX.plaster, tile: 3.2 };
+    if (part.kind === 'wall') return { map: TEX.plaster, tile: 1.7 };
+    if (part.kind !== 'unit') return null;
+    if (part.category === 'restroom') return { map: TEX.tile, tile: 0.52 };
+    if (part.category === 'room') return { map: TEX.soft, tile: 1.8 };
+    if (part.category === 'elevator' || part.category === 'escalator') return { map: TEX.metal, tile: 0.65 };
+    if (part.category === 'stair') return { map: TEX.plaster, tile: 0.9 };
+    if (part.category === 'corridor' || part.category === 'hall') return { map: TEX.tile, tile: 1.25 };
+    return { map: TEX.soft, tile: 1.5 };
+  }
+
+  function applySkin(mesh) {
+    if (!mesh.material || !mesh.userData.tex) return;
+    const next = solid ? mesh.userData.tex : null;
+    if (mesh.material.map !== next) {
+      mesh.material.map = next;
+      mesh.material.needsUpdate = true;
+    }
+  }
+
+  function unitColor(d) {
+    if (shellSelected != null && String(d.id) === String(shellSelected)) return 0xBBD3EA;
+    if (shellHover != null && String(d.id) === String(shellHover)) return 0xDCE7F2;
+    if (solid && d.category === 'escalator') return 0x343B44;
+    if (solid && d.category === 'stair') return 0xC9BBA8;
+    if (solid && d.category === 'elevator') return 0x3E4854;
+    return d.color;
+  }
+
+  function ringScene(ring) {
+    const pts = [];
+    let end = ring.length;
+    if (end > 1 && ring[end - 1][0] === ring[0][0] && ring[end - 1][1] === ring[0][1]) end -= 1;
+    for (let i = 0; i < end; i++) pts.push(toScene(ring[i]));
+    return pts;
+  }
+
+  function ringFrame(ring) {
+    const pts = ringScene(ring);
+    if (pts.length < 3) return null;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    pts.forEach((p) => {
+      minX = Math.min(minX, p[0]);
+      minY = Math.min(minY, p[1]);
+      maxX = Math.max(maxX, p[0]);
+      maxY = Math.max(maxY, p[1]);
+    });
+    const w = maxX - minX;
+    const h = maxY - minY;
+    if (w < 1 || h < 1) return null;
+    return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: w, h: h };
+  }
+
+  function pushPanel(list, cx, cy, dx, dy, width, z0, z1) {
+    const hx = dx * width * 0.5;
+    const hy = dy * width * 0.5;
+    const x0 = cx - hx;
+    const y0 = cy - hy;
+    const x1 = cx + hx;
+    const y1 = cy + hy;
+    list.push(
+      x0, y0, z0, x1, y1, z0, x1, y1, z1,
+      x0, y0, z0, x1, y1, z1, x0, y0, z1
+    );
+  }
+
+  function addMerged(pos, material, order, part) {
+    if (pos.length < 9) return;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    const mesh = new THREE.Mesh(geo, material);
+    mesh.renderOrder = order;
+    mesh.userData = { kind: 'facade', rank: part.rank || 0, level: part.level };
+    shellGroup.add(mesh);
+  }
+
+  function addFacade(ring, part) {
+    const pts = ringScene(ring);
+    if (pts.length < 3) return;
+    let cx = 0;
+    let cy = 0;
+    pts.forEach((p) => { cx += p[0]; cy += p[1]; });
+    cx /= pts.length;
+    cy /= pts.length;
+    const base = part.top;
+    const clear = Math.max(2.4, (part.story || 4) - (part.slab || 0.25));
+    const glass0 = base + 0.18;
+    const glass1 = base + clear - 0.46;
+    const top = base + clear - 0.06;
+    const glassPos = [];
+    const bandPos = [];
+    const kickPos = [];
+    const mullionPos = [];
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i];
+      const b = pts[(i + 1) % pts.length];
+      const dx = b[0] - a[0];
+      const dy = b[1] - a[1];
+      const len = Math.hypot(dx, dy);
+      if (len < 2.4) continue;
+      const ux = dx / len;
+      const uy = dy / len;
+      let ox = (a[0] + b[0]) / 2 - cx;
+      let oy = (a[1] + b[1]) / 2 - cy;
+      const ol = Math.hypot(ox, oy) || 1;
+      ox /= ol;
+      oy /= ol;
+      const span = len - 0.36;
+      const mx = (a[0] + b[0]) / 2 + ox * 0.05;
+      const my = (a[1] + b[1]) / 2 + oy * 0.05;
+      pushPanel(kickPos, mx, my, ux, uy, span, base + 0.02, glass0);
+      pushPanel(bandPos, mx, my, ux, uy, span, glass1, top);
+      const count = Math.max(1, Math.round((len - 0.8) / 3.15));
+      const step = (len - 0.8) / count;
+      const start = 0.4;
+      for (let k = 0; k <= count; k++) {
+        const s = start + step * k;
+        pushPanel(mullionPos, a[0] + ux * s + ox * 0.16, a[1] + uy * s + oy * 0.16, ux, uy, 0.1, glass0, glass1);
+      }
+      for (let k = 0; k < count; k++) {
+        const s = start + step * k + step / 2;
+        pushPanel(glassPos, a[0] + ux * s + ox * 0.1, a[1] + uy * s + oy * 0.1, ux, uy, Math.max(0.4, step - 0.14), glass0, glass1);
+      }
+    }
+    addMerged(glassPos, FIN.glass, 1, part);
+    addMerged(kickPos, FIN.kick, 2, part);
+    addMerged(bandPos, FIN.spandrel, 2, part);
+    addMerged(mullionPos, FIN.mullion, 2, part);
+  }
+
+  function addBox(parent, sx, sy, sz, x, y, z, material, rotX, order) {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), material);
+    mesh.position.set(x, y, z);
+    if (rotX) mesh.rotation.x = rotX;
+    if (order) mesh.renderOrder = order;
+    mesh.frustumCulled = false;
+    parent.add(mesh);
+    return mesh;
+  }
+
+  function machineGroup(frame, part, category) {
+    const outer = new THREE.Group();
+    outer.position.set(frame.cx, frame.cy, part.top + 0.03);
+    outer.frustumCulled = false;
+    const alongY = frame.h >= frame.w - 0.05;
+    if (!alongY) outer.rotation.z = Math.PI / 2;
+    outer.userData = {
+      kind: 'machine',
+      category: category,
+      rank: part.rank || 0,
+      level: part.level,
+      steps: null
+    };
+    shellGroup.add(outer);
+    return { outer: outer, length: alongY ? frame.h : frame.w, across: alongY ? frame.w : frame.h };
+  }
+
+  function addStair(ring, part) {
+    const frame = ringFrame(ring);
+    if (!frame) return;
+    const host = machineGroup(frame, part, 'stair');
+    const model = new THREE.Group();
+    host.outer.add(model);
+    const half = host.length / 2;
+    const rise = part.rise || 3.94;
+    const land = Math.min(1.35, host.length * 0.16);
+    const going = Math.max(1.2, host.length - land * 2);
+    const steps = 20;
+    const tread = going / steps;
+    const riser = rise / steps;
+    const width = Math.min(2.2, host.across * 0.48);
+    const y0 = -half + land;
+    const y1 = y0 + going;
+    for (let i = 0; i < steps; i++) {
+      addBox(model, width, tread * 0.9, riser * 0.88, 0, y0 + tread * i + tread * 0.5, riser * i + riser * 0.44, FIN.tread);
+    }
+    addBox(model, width + 0.25, land, 0.08, 0, -half + land / 2, 0.04, FIN.landing);
+    addBox(model, width + 0.25, Math.max(0.4, half - y1), 0.08, 0, (y1 + half) / 2, rise - 0.04, FIN.landing);
+    const railLen = Math.hypot(going, rise);
+    [-1, 1].forEach((side) => {
+      const x = side * (width / 2 + 0.05);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute([
+        x, y0, 0.02, x, y1, 0.02, x, y1, rise
+      ], 3));
+      model.add(new THREE.Mesh(geo, FIN.skirt));
+      addBox(model, 0.07, railLen, 0.07, x, (y0 + y1) / 2, rise / 2 + 0.86, FIN.rail, Math.atan2(rise, going));
+    });
+  }
+
+  function addElevator(ring, part) {
+    const frame = ringFrame(ring);
+    if (!frame) return;
+    const host = machineGroup(frame, part, 'elevator');
+    const model = new THREE.Group();
+    host.outer.add(model);
+    const w = Math.min(2.35, host.across * 0.42);
+    const d = Math.min(2.35, host.length * 0.42);
+    const h = 2.65;
+    addBox(model, w, d, h, 0, 0, h / 2 + 0.04, FIN.glass, 0, 1);
+    [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach((p) => {
+      addBox(model, 0.09, 0.09, h + 0.1, p[0] * w / 2, p[1] * d / 2, h / 2, FIN.mullion);
+    });
+    addBox(model, w * 0.64, 0.07, h * 0.7, 0, -d / 2 - 0.03, h * 0.42, FIN.skirt);
+  }
+
+  function addEscalator(ring, part) {
+    const frame = ringFrame(ring);
+    if (!frame) return;
+    const host = machineGroup(frame, part, 'escalator');
+    const model = new THREE.Group();
+    model.frustumCulled = false;
+    if (/B\b/.test(part.name || '')) model.scale.y = -1;
+    host.outer.add(model);
+    const half = host.length / 2;
+    const rise = part.rise || 3.94;
+    let ang = 35 * Math.PI / 180;
+    let runL = rise / Math.tan(ang);
+    if (runL > host.length - 0.9) {
+      runL = Math.max(1.6, host.length - 0.9);
+      ang = Math.atan2(rise, runL);
+    }
+    const landL = (host.length - runL) / 2;
+    const incline = Math.hypot(runL, rise);
+    const y0 = -half + landL;
+    const y1 = half - landL;
+    const stepW = Math.min(1.7, Math.max(0.9, host.across * 0.38));
+    const nY = -Math.sin(ang);
+    const nZ = Math.cos(ang);
+    const midY = (y0 + y1) / 2;
+    addBox(model, stepW + 0.6, landL, 0.07, 0, -half + landL / 2, 0.045, FIN.landing);
+    addBox(model, stepW + 0.6, landL, 0.06, 0, half - landL / 2, rise - 0.03, FIN.landing);
+    addBox(model, stepW + 0.15, 0.16, 0.045, 0, y0, 0.1, FIN.yellow);
+    addBox(model, stepW + 0.15, 0.16, 0.045, 0, y1, rise + 0.02, FIN.yellow);
+    [-1, 1].forEach((side) => {
+      const x = side * (stepW / 2 + 0.08);
+      addBox(model, 0.08, incline, 0.55, x, midY, rise / 2, FIN.skirt, ang);
+      addBox(model, 0.04, incline, 0.7, x, midY + nY * 0.46, rise / 2 + nZ * 0.46, FIN.glass, ang, 2);
+      addBox(model, 0.08, incline, 0.07, x, midY + nY * 0.86, rise / 2 + nZ * 0.86, FIN.rail, ang);
+      addBox(model, 0.08, landL * 0.92, 0.07, x, -half + landL / 2, nZ * 0.86, FIN.rail);
+      addBox(model, 0.08, landL * 0.92, 0.07, x, half - landL / 2, rise + nZ * 0.86, FIN.rail);
+      addBox(model, 0.1, 0.1, 0.92, x, -half + 0.12, 0.46, FIN.rail);
+      addBox(model, 0.1, 0.1, 0.92, x, half - 0.12, rise + 0.46, FIN.rail);
+    });
+    const count = Math.max(8, Math.floor(incline / 0.4));
+    const items = [];
+    for (let i = 0; i < count; i++) {
+      const step = new THREE.Group();
+      step.frustumCulled = false;
+      addBox(step, stepW, 0.36, 0.12, 0, 0, 0.06, FIN.tread);
+      addBox(step, stepW, 0.05, 0.03, 0, 0.15, 0.12, FIN.yellow);
+      const dist = (incline / count) * i;
+      step.position.y = y0 + Math.cos(ang) * dist;
+      step.position.z = Math.sin(ang) * dist;
+      model.add(step);
+      items.push({ mesh: step, phase: dist });
+    }
+    host.outer.userData.steps = { items: items, y0: y0, ang: ang, length: incline };
+    escalatorLive = true;
+  }
+
+  function moveMachines(now) {
+    if (!escalatorLive || reduceMotion || !solid) return;
+    const shift = ((now || performance.now()) / 1000) * 0.48;
+    shellGroup.children.forEach((group) => {
+      const run = group.userData.steps;
+      if (!run || !group.visible) return;
+      run.items.forEach((s) => {
+        const dist = (s.phase + shift) % run.length;
+        s.mesh.position.y = run.y0 + Math.cos(run.ang) * dist;
+        s.mesh.position.z = Math.sin(run.ang) * dist;
+      });
+    });
+  }
+
   function setShell(parts) {
     clearGroup(shellGroup);
+    escalatorLive = false;
     (parts || []).forEach((part) => {
       const ring = part.ring;
       if (!ring || ring.length < 4) return;
@@ -687,6 +1027,8 @@ export function createScene3D(map, options) {
         return;
       }
       geo.translate(0, 0, part.bottom);
+      const tex = surfaceTexture(part);
+      if (tex) paintUVs(geo, tex.tile);
       const mesh = new THREE.Mesh(geo, basic(part.color));
       mesh.userData = {
         ownMaterial: true,
@@ -695,21 +1037,27 @@ export function createScene3D(map, options) {
         kind: part.kind,
         category: part.category || '',
         id: part.id,
-        color: part.color
+        color: part.color,
+        tex: tex ? tex.map : null
       };
+      if (tex && solid) mesh.material.map = tex.map;
       shellGroup.add(mesh);
+      if (part.kind === 'plate') addFacade(ring, part);
+      if (part.kind === 'unit' && part.above && part.category === 'escalator') addEscalator(ring, part);
+      if (part.kind === 'unit' && part.above && part.category === 'stair') addStair(ring, part);
+      if (part.kind === 'unit' && part.category === 'elevator') addElevator(ring, part);
     });
     syncVisibility();
+    if (solid && escalatorLive && !reduceMotion) wake(0);
     map.triggerRepaint();
   }
 
   function setUnitTone(selectedId, hoverId) {
+    shellSelected = selectedId;
+    shellHover = hoverId;
     shellGroup.children.forEach((m) => {
-      if (m.userData.kind !== 'unit') return;
-      const id = m.userData.id;
-      const color = String(id) === String(selectedId) ? 0xBBD3EA
-        : (hoverId != null && String(id) === String(hoverId) ? 0xDCE7F2 : m.userData.color);
-      m.material.color.set(color);
+      if (m.userData.kind !== 'unit' || !m.material) return;
+      m.material.color.set(unitColor(m.userData));
     });
     map.triggerRepaint();
   }
@@ -717,6 +1065,7 @@ export function createScene3D(map, options) {
   function setSolid(on) {
     solid = !!on;
     syncVisibility();
+    if (solid && escalatorLive && !reduceMotion) wake(0);
     map.triggerRepaint();
   }
 
@@ -726,22 +1075,6 @@ export function createScene3D(map, options) {
     if (cats) shellCats = cats;
     syncVisibility();
     map.triggerRepaint();
-  }
-
-  function setCharacter(kind) {
-    characterKind = kind === 'girl' ? 'girl' : 'boy';
-    if (character) {
-      facing.remove(character.root);
-      character.dispose();
-    }
-    character = createCharacter(characterKind);
-    facing.add(character.root);
-    wake(600);
-  }
-
-  function setGait(gait) {
-    pb.gait = gait === 'run' ? 'run' : 'walk';
-    wake(300);
   }
 
   function legPoint(leg, d) {
@@ -901,6 +1234,8 @@ export function createScene3D(map, options) {
     pb.leg = 0;
     pb.done = false;
     pb.playing = false;
+    pb.elapsed = 0;
+    pb.announced = -1;
     pb.size = 1;
     placeAt(pb.plan.start.level, pb.plan.start.xy, pb.plan.start.elev, firstHeading(pb.plan));
     syncVisibility();
@@ -911,8 +1246,22 @@ export function createScene3D(map, options) {
     if (!pb.plan) return;
     if (pb.done) reset();
     pb.playing = true;
-    const leg = pb.plan.legs[pb.leg];
-    hooks.onStep(leg ? leg.step : pb.plan.arriveStep);
+    pb.elapsed = 0;
+    pb.total = pb.plan.legs.reduce((sum, leg) => sum + (leg.kind === 'walk' ? leg.length : 0), 0);
+    pb.announced = -1;
+    pb.plan.legs.forEach((leg) => {
+      if (leg.kind === 'walk') {
+        leg.shown = 0;
+        updateTrail(leg);
+      } else {
+        leg.t = 0;
+        leg.switched = false;
+      }
+    });
+    placeAt(pb.plan.start.level, pb.plan.start.xy, pb.plan.start.elev, firstHeading(pb.plan));
+    const first = pb.plan.legs[0];
+    pb.announced = first ? first.step : pb.plan.arriveStep;
+    hooks.onStep(pb.announced);
     wake(0);
   }
 
@@ -951,66 +1300,72 @@ export function createScene3D(map, options) {
     complete(true);
   }
 
-  function advance() {
-    pb.leg += 1;
-    const next = pb.plan.legs[pb.leg];
-    if (!next) {
-      complete(false);
-      return;
+  function reveal(distance) {
+    let remain = distance;
+    let level = pb.plan.start.level;
+    let elev = pb.plan.start.elev;
+    let x = pb.plan.start.xy[0];
+    let y = pb.plan.start.xy[1];
+    let heading = pb.heading;
+    let step = pb.plan.legs.length ? pb.plan.legs[0].step : pb.plan.arriveStep;
+    let active = true;
+    pb.plan.legs.forEach((leg) => {
+      if (leg.kind === 'walk') {
+        const show = active ? Math.max(0, Math.min(leg.length, remain)) : 0;
+        leg.shown = show;
+        updateTrail(leg);
+        if (show > 0) {
+          const p = legPoint(leg, show);
+          level = leg.level;
+          elev = leg.elev;
+          x = p.x;
+          y = p.y;
+          if (p.heading != null) heading = p.heading;
+          step = leg.step;
+        }
+        if (active) {
+          remain -= leg.length;
+          if (remain < -0.001) active = false;
+          else remain = Math.max(0, remain);
+        }
+      } else if (active) {
+        if (!leg.switched) {
+          leg.switched = true;
+          leg.t = 1;
+          if (leg.to !== activeLevel) hooks.onLevel(leg.to);
+        }
+        level = leg.to;
+        elev = leg.toElev;
+        x = leg.xy[0];
+        y = leg.xy[1];
+        step = leg.step;
+      }
+    });
+    pb.level = level;
+    pb.x = x;
+    pb.y = y;
+    pb.z = elev;
+    pb.targetHeading = heading;
+    if (step !== pb.announced) {
+      pb.announced = step;
+      hooks.onStep(step);
     }
-    hooks.onStep(next.step);
   }
 
   function tick(dt, now) {
-    let moved = 0;
-    let moving = false;
     if (pb.plan && pb.playing) {
-      const leg = pb.plan.legs[pb.leg];
-      if (!leg) {
-        complete(false);
-      } else if (leg.kind === 'walk') {
-        const before = leg.shown;
-        leg.shown = Math.min(leg.length, leg.shown + SPEED[pb.gait] * dt);
-        moved = leg.shown - before;
-        moving = moved > 0;
-        const p = legPoint(leg, leg.shown);
-        pb.level = leg.level;
-        pb.x = p.x;
-        pb.y = p.y;
-        pb.z = leg.elev;
-        pb.size = 1;
-        if (p.heading != null) pb.targetHeading = p.heading;
-        updateTrail(leg);
-        if (leg.shown >= leg.length) advance();
-      } else {
-        leg.t = Math.min(1, leg.t + dt / RIDE_SECONDS);
-        pb.x = leg.xy[0];
-        pb.y = leg.xy[1];
-        if (leg.t < 0.5) {
-          pb.z = leg.fromElev;
-          pb.size = 1 - smooth(leg.t / 0.4);
-        } else {
-          if (!leg.switched) {
-            leg.switched = true;
-            pb.level = leg.to;
-            hooks.onLevel(leg.to);
-          }
-          pb.z = leg.toElev;
-          pb.size = smooth((leg.t - 0.6) / 0.4);
-        }
-        if (leg.t >= 1) advance();
-      }
-      if (pb.plan && pb.playing) hooks.onMove({ lngLat: fromScene(pb.x, pb.y), elev: pb.z });
+      pb.elapsed = Math.min(DRAW_SECONDS, pb.elapsed + dt);
+      reveal((pb.elapsed / DRAW_SECONDS) * pb.total);
+      if (pb.elapsed >= DRAW_SECONDS) complete(false);
+      else hooks.onMove({ lngLat: fromScene(pb.x, pb.y), elev: pb.z });
     }
-    pb.heading = lerpAngle(pb.heading, pb.targetHeading, 1 - Math.exp(-dt * 12));
-    if (character) {
-      character.update(dt, { moving, gait: pb.gait, distance: moved / Math.max(1, charScale) });
-    }
+    pb.heading = lerpAngle(pb.heading, pb.targetHeading, 1 - Math.exp(-dt * 8));
     pb.pulses.forEach((pulse) => {
       const t = (now / 1400) % 1;
       pulse.scale.setScalar(0.7 + t * 1.6);
       pulse.material.opacity = 0.55 * (1 - t);
     });
+    moveMachines(now);
   }
 
   function loop(now) {
@@ -1019,7 +1374,7 @@ export function createScene3D(map, options) {
     last = now;
     tick(dt, now);
     map.triggerRepaint();
-    if (pb.playing || now < idleUntil) {
+    if (pb.playing || now < idleUntil || (solid && escalatorLive && !reduceMotion)) {
       raf = requestAnimationFrame(loop);
     } else {
       last = 0;
@@ -1030,8 +1385,6 @@ export function createScene3D(map, options) {
     idleUntil = Math.max(idleUntil, performance.now() + (ms || 0));
     if (!raf) raf = requestAnimationFrame(loop);
   }
-
-  setCharacter(characterKind);
 
   return {
     layer,
@@ -1047,8 +1400,6 @@ export function createScene3D(map, options) {
     setUnitTone,
     setSolid,
     setActiveLevel,
-    setCharacter,
-    setGait,
     setRoute,
     clearRoute,
     setDraft,

@@ -43,16 +43,23 @@
 
         <div class="panel" id="panel-directions">
           <div class="section-label">Route</div>
-          <p class="muted">Choose two places, pick them on the map, or draw a start and an end. The guide walks the route and draws it as it goes.</p>
+          <p class="muted">Search a name or a floor, such as Cinema or Third. From, To, and Draw pick a point on the map.</p>
           <div class="field">
-            <label for="route-from">From</label>
-            <select id="route-from"></select>
+            <label for="from-search">From</label>
+            <input id="from-search" type="search" placeholder="Name or floor" autocomplete="off" spellcheck="false">
+            <div class="place-results" id="from-results" hidden></div>
             <div class="field-note" id="from-note"></div>
           </div>
           <div class="field">
-            <label for="route-to">To</label>
-            <select id="route-to"></select>
+            <label for="to-search">To</label>
+            <input id="to-search" type="search" placeholder="Name or floor" autocomplete="off" spellcheck="false">
+            <div class="place-results" id="to-results" hidden></div>
             <div class="field-note" id="to-note"></div>
+          </div>
+          <div class="seg" role="group" aria-label="Pick on the map">
+            <button class="seg-btn" type="button" data-tool="from" aria-pressed="false">From</button>
+            <button class="seg-btn" type="button" data-tool="to" aria-pressed="false">To</button>
+            <button class="seg-btn" type="button" data-tool="draw" aria-pressed="false">Draw</button>
           </div>
           <div class="section-label">Between floors</div>
           <div class="seg" role="group" aria-label="Stairs or elevator">
@@ -62,32 +69,9 @@
           </div>
           <button class="btn btn-primary" id="btn-route" type="button">Get directions</button>
           <div class="btn-row">
+            <button class="btn" id="btn-replay" type="button" disabled>Replay</button>
             <button class="btn" id="btn-swap" type="button">Swap</button>
             <button class="btn" id="btn-clear-route" type="button">Clear</button>
-          </div>
-          <div class="section-label">On the map</div>
-          <button class="choice-btn" id="pick-from" type="button">
-            <span class="choice-copy"><strong>Pick start</strong><span>Click a place or the corridor</span></span>
-          </button>
-          <button class="choice-btn" id="pick-to" type="button">
-            <span class="choice-copy"><strong>Pick destination</strong><span>Click where the route should end</span></span>
-          </button>
-          <button class="choice-btn" id="pick-draw" type="button">
-            <span class="choice-copy"><strong>Draw</strong><span>Click start, then destination</span></span>
-          </button>
-          <div class="section-label">Guide</div>
-          <div class="seg" role="group" aria-label="Character">
-            <button class="seg-btn" type="button" data-avatar="boy">Male</button>
-            <button class="seg-btn" type="button" data-avatar="girl">Female</button>
-          </div>
-          <div class="seg" role="group" aria-label="Pace">
-            <button class="seg-btn" type="button" data-gait="walk">Walk</button>
-            <button class="seg-btn" type="button" data-gait="run">Run</button>
-          </div>
-          <div class="btn-row" id="play-row">
-            <button class="btn" id="btn-play" type="button" disabled>Pause</button>
-            <button class="btn" id="btn-replay" type="button" disabled>Replay</button>
-            <button class="btn" id="btn-skip" type="button" disabled>Skip</button>
           </div>
           <div id="route-summary"></div>
           <div id="route-steps"></div>
@@ -224,16 +208,14 @@
     </aside>
 
     <div id="pano-modal">
-      <div class="pano-card" role="dialog" aria-modal="true" aria-labelledby="pano-title">
-        <div class="detail-head">
-          <div>
-            <div class="detail-type" id="pano-kicker">360 photo</div>
-            <h3 id="pano-title"></h3>
-          </div>
-          <button class="icon-btn" id="btn-close-pano" type="button" aria-label="Close 360">×</button>
-        </div>
-        <div class="pano-floor muted" id="pano-floor"></div>
-        <div id="pano-view"></div>
+      <div id="pano-view" role="dialog" aria-modal="true" aria-label="360 photo"></div>
+      <div class="pano-overlay">
+        <button class="pano-float" id="btn-pano-back" type="button" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M15.4 4.6 8 12l7.4 7.4-1.4 1.4L5.2 12 14 3.2l1.4 1.4z"/></svg>
+        </button>
+        <button class="pano-float" id="btn-pano-clear" type="button" aria-label="Clear">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4 17.6 5 12 10.6 6.4 5z"/></svg>
+        </button>
       </div>
     </div>
 
