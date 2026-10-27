@@ -946,6 +946,25 @@ body.scale-off .maplibregl-ctrl-bottom-left { display: none; }
 
 #route-steps { margin-top: 8px; max-height: 240px; overflow: auto; }
 
+.ride-caption {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--navy);
+  box-shadow: var(--shadow);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.ride-caption.show { display: inline-flex; }
+
 .toast {
   align-self: center;
   background: var(--navy-deep);
@@ -1074,6 +1093,7 @@ html[data-theme="glass"] #map-legend,
 html[data-theme="glass"] .flyout,
 html[data-theme="glass"] #detail-panel,
 html[data-theme="glass"] .bookmark-pill,
+html[data-theme="glass"] .ride-caption,
 html[data-theme="glass"] .loading-card {
   background: transparent !important;
   border-color: rgba(255, 255, 255, 0.45);
@@ -1095,17 +1115,20 @@ html[data-theme="glass"] #detail-panel,
 html[data-theme="glass"] .loading-card { border-radius: 1rem; }
 
 html[data-theme="glass"] #status-bar,
-html[data-theme="glass"] .bookmark-pill { border-radius: 999px; }
+html[data-theme="glass"] .bookmark-pill,
+html[data-theme="glass"] .ride-caption { border-radius: 999px; }
 
 html[data-theme="glass"] #map-toolbar,
 html[data-theme="glass"] #status-bar,
 html[data-theme="glass"] #map-legend,
 html[data-theme="glass"] .bookmark-pill,
+html[data-theme="glass"] .ride-caption,
 html[data-theme="glass"] .loading-card { padding: 0; }
 
 html[data-theme="glass"] #status-bar,
 html[data-theme="glass"] #map-legend,
 html[data-theme="glass"] .bookmark-pill,
+html[data-theme="glass"] .ride-caption,
 html[data-theme="glass"] .loading-card { overflow: hidden; }
 
 html[data-theme="glass"] #map-toolbar,
@@ -1202,6 +1225,16 @@ html[data-theme="glass"] .bookmark-pill > .liquidGlass-content {
   border-radius: inherit;
 }
 
+html[data-theme="glass"] .ride-caption > .liquidGlass-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px 0 12px;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
 html[data-theme="glass"] .bookmark-pill.active::before { content: none; }
 
 html[data-theme="glass"] .bookmark-pill.active > .liquidGlass-content::before {
@@ -1234,6 +1267,7 @@ html[data-theme="glass"] .flyout-item,
 html[data-theme="glass"] #detail-panel,
 html[data-theme="glass"] #detail-panel h3,
 html[data-theme="glass"] .bookmark-pill,
+html[data-theme="glass"] .ride-caption,
 html[data-theme="glass"] .choice-copy strong,
 html[data-theme="glass"] .step-btn,
 html[data-theme="glass"] .step-btn strong,

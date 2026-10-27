@@ -37,7 +37,7 @@
 
         <div class="panel" id="panel-layers">
           <div class="section-label">On this floor</div>
-          <p class="muted">Rooms, halls, and circulation. Pathways are the walk network used for directions.</p>
+          <p class="muted">Rooms, halls, and circulation. Pathways are the main lines. Full network is every walk link.</p>
           <div id="layer-list"></div>
         </div>
 
@@ -85,6 +85,10 @@
 
     <div id="top-bar">
       <div id="floor-pills" aria-label="Floors"></div>
+      <div id="ride-caption" class="ride-caption" role="status" aria-live="polite" aria-hidden="true">
+        <span class="floor-swatch" id="ride-caption-swatch"></span>
+        <span id="ride-caption-text"></span>
+      </div>
       <div class="toast" id="toast"></div>
     </div>
 

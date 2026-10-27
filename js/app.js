@@ -5,8 +5,10 @@ const BASE = 1.4;
 const SLAB = 0.25;
 const UNIT_TOP = 0.06;
 const WALL_HEIGHT = 2.6;
-const WALL_THICK = 0.28;
-const DOOR_WIDTH = 1.6;
+const PLAN_SCALE = 50 / 220;
+const WALL_THICK = 0.28 * PLAN_SCALE;
+const DOOR_WIDTH = 1.6 * PLAN_SCALE;
+const BORDER_WIDTH = 0.55 * PLAN_SCALE;
 const PITCH_3D = 55;
 const BEARING_3D = -18;
 const DRAW_MS = 8000;
@@ -20,7 +22,8 @@ const CATEGORIES = [
   { id: 'elevator', label: 'Elevators', fill: '#E4EAF3', line: '#1B2A4A' },
   { id: 'escalator', label: 'Escalators', fill: '#FDE7D6', line: '#C2410C' },
   { id: 'stair', label: 'Stairs', fill: '#F3EEE8', line: '#6B778C' },
-  { id: 'pathway', label: 'Pathways', fill: '#1565A8', line: '#1565A8', lineOnly: true }
+  { id: 'pathway', label: 'Pathways', fill: '#1565A8', line: '#1565A8', lineOnly: true, note: 'Main lines' },
+  { id: 'network', label: 'Full network', fill: '#5C6B82', line: '#5C6B82', lineOnly: true, note: 'Every walk link' }
 ];
 
 const DOCK_TITLES = { floors: 'Floors', layers: 'Layers', directions: 'Directions' };
@@ -29,7 +32,7 @@ const state = {
   levelId: null,
   layers: {
     hall: true, room: true, corridor: true, restroom: true,
-    elevator: true, escalator: true, stair: true, pathway: false, labels: true
+    elevator: true, escalator: true, stair: true, pathway: false, network: false, labels: true
   },
   is3d: false,
   dockOpen: false,
@@ -262,70 +265,167 @@ function crossParam(a, b, p, q) {
   return t;
 }
 
+function edgeOf(a, b) {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const len = Math.hypot(dx, dy);
+  if (len < 0.05) return null;
+  if (Math.abs(dy) <= 0.04) {
+    return { axis: 'h', at: (a[1] + b[1]) / 2, min: Math.min(a[0], b[0]), max: Math.max(a[0], b[0]), a: a, b: b, len: len };
+  }
+  if (Math.abs(dx) <= 0.04) {
+    return { axis: 'v', at: (a[0] + b[0]) / 2, min: Math.min(a[1], b[1]), max: Math.max(a[1], b[1]), a: a, b: b, len: len };
+  }
+  return { axis: 'd', a: a, b: b, len: len };
+}
+
+function mergeSpans(spans) {
+  if (!spans.length) return [];
+  const sorted = spans.slice().sort((p, q) => p[0] - q[0]);
+  const out = [[sorted[0][0], sorted[0][1]]];
+  for (let i = 1; i < sorted.length; i++) {
+    const last = out[out.length - 1];
+    if (sorted[i][0] <= last[1] + 0.05) last[1] = Math.max(last[1], sorted[i][1]);
+    else out.push([sorted[i][0], sorted[i][1]]);
+  }
+  return out;
+}
+
+function cutSpans(segments, cuts) {
+  const out = [];
+  segments.forEach((seg) => {
+    let cursor = seg[0];
+    cuts.forEach((cut) => {
+      const c0 = Math.max(seg[0], cut[0]);
+      const c1 = Math.min(seg[1], cut[1]);
+      if (c1 <= c0 + 0.001) return;
+      if (c0 > cursor + 0.05) out.push([cursor, c0]);
+      cursor = Math.max(cursor, c1);
+    });
+    if (seg[1] > cursor + 0.05) out.push([cursor, seg[1]]);
+  });
+  return out;
+}
+
+function sharedSpans(edge, others) {
+  if (!others || edge.axis === 'd') return [];
+  const spans = [];
+  others.forEach((other) => {
+    if (other.axis !== edge.axis || Math.abs(other.at - edge.at) > 0.3) return;
+    const lo = Math.max(edge.min, other.min);
+    const hi = Math.min(edge.max, other.max);
+    if (hi - lo < 0.35) return;
+    const origin = edge.axis === 'h' ? edge.a[0] : edge.a[1];
+    const dir = (edge.axis === 'h' ? edge.b[0] - edge.a[0] : edge.b[1] - edge.a[1]) >= 0 ? 1 : -1;
+    const s0 = (lo - origin) * dir;
+    const s1 = (hi - origin) * dir;
+    spans.push([Math.max(0, Math.min(s0, s1)), Math.min(edge.len, Math.max(s0, s1))]);
+  });
+  return mergeSpans(spans);
+}
+
 function buildWalls() {
   const segments = new Map();
+  const circulation = new Map();
+  const rooms = new Map();
   collection.features.forEach((f) => {
     const p = f.properties;
-    if (p.feature_type !== 'pathway') return;
-    if (!segments.has(p.level_id)) segments.set(p.level_id, []);
-    lineParts(f).forEach((line) => {
-      for (let i = 1; i < line.length; i++) {
-        segments.get(p.level_id).push([
-          spatial.toMeters(line[i - 1][0], line[i - 1][1]),
-          spatial.toMeters(line[i][0], line[i][1])
-        ]);
+    if (p.feature_type === 'pathway') {
+      if (!segments.has(p.level_id)) segments.set(p.level_id, []);
+      lineParts(f).forEach((line) => {
+        for (let i = 1; i < line.length; i++) {
+          segments.get(p.level_id).push([
+            spatial.toMeters(line[i - 1][0], line[i - 1][1]),
+            spatial.toMeters(line[i][0], line[i][1])
+          ]);
+        }
+      });
+      return;
+    }
+    if (p.feature_type !== 'unit') return;
+    const bucket = p.category === 'corridor' || p.category === 'hall' ? circulation : p.category === 'room' ? rooms : null;
+    if (!bucket) return;
+    if (!bucket.has(p.level_id)) bucket.set(p.level_id, []);
+    const list = bucket.get(p.level_id);
+    polygonRings(f).forEach((ring) => {
+      const pts = ring.map((c) => spatial.toMeters(c[0], c[1]));
+      for (let i = 1; i < pts.length; i++) {
+        const edge = edgeOf(pts[i - 1], pts[i]);
+        if (edge && edge.axis !== 'd') list.push(edge);
       }
     });
   });
 
   const out = [];
   const half = WALL_THICK / 2;
+  const pushPiece = (p, a, b, len, s0, s1, shopfront, door) => {
+    const dx = (b[0] - a[0]) / len;
+    const dy = (b[1] - a[1]) / len;
+    const nx = -dy * half;
+    const ny = dx * half;
+    const e0 = s0 <= 0.001 ? -half : 0;
+    const e1 = s1 >= len - 0.001 ? half : 0;
+    const p0 = [a[0] + dx * (s0 + e0), a[1] + dy * (s0 + e0)];
+    const p1 = [a[0] + dx * (s1 + e1), a[1] + dy * (s1 + e1)];
+    const corners = [
+      [p0[0] + nx, p0[1] + ny],
+      [p1[0] + nx, p1[1] + ny],
+      [p1[0] - nx, p1[1] - ny],
+      [p0[0] - nx, p0[1] - ny]
+    ].map((c) => spatial.toLonLat(c[0], c[1]));
+    corners.push(corners[0]);
+    out.push({
+      type: 'Feature',
+      properties: {
+        level_id: p.level_id,
+        rank: p.rank,
+        category: p.category,
+        shopfront: !!shopfront,
+        door: !!door
+      },
+      geometry: { type: 'Polygon', coordinates: [corners] }
+    });
+  };
   collection.features.forEach((f) => {
     const p = f.properties;
     if (p.feature_type !== 'unit') return;
     const paths = segments.get(p.level_id) || [];
+    const fronts = p.category === 'room' ? circulation.get(p.level_id) : (p.category === 'corridor' || p.category === 'hall') ? rooms.get(p.level_id) : null;
     polygonRings(f).forEach((ring) => {
       const pts = ring.map((c) => spatial.toMeters(c[0], c[1]));
       for (let i = 1; i < pts.length; i++) {
         const a = pts[i - 1];
         const b = pts[i];
-        const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-        if (len < 0.05) continue;
+        const edge = edgeOf(a, b);
+        if (!edge) continue;
         const gaps = [];
         paths.forEach((seg) => {
           const t = crossParam(a, b, seg[0], seg[1]);
-          if (t != null) gaps.push([t * len - DOOR_WIDTH / 2, t * len + DOOR_WIDTH / 2]);
+          if (t != null) gaps.push([t * edge.len - DOOR_WIDTH / 2, t * edge.len + DOOR_WIDTH / 2]);
         });
         gaps.sort((x, y) => x[0] - y[0]);
-        const pieces = [];
-        let cursor = 0;
-        gaps.forEach((gap) => {
-          if (gap[0] > cursor + 0.05) pieces.push([cursor, Math.min(gap[0], len)]);
-          cursor = Math.max(cursor, gap[1]);
-        });
-        if (len > cursor + 0.05) pieces.push([cursor, len]);
-        const dx = (b[0] - a[0]) / len;
-        const dy = (b[1] - a[1]) / len;
-        const nx = -dy * half;
-        const ny = dx * half;
-        pieces.forEach(([s0, s1]) => {
-          const e0 = s0 <= 0.001 ? -half : 0;
-          const e1 = s1 >= len - 0.001 ? half : 0;
-          const p0 = [a[0] + dx * (s0 + e0), a[1] + dy * (s0 + e0)];
-          const p1 = [a[0] + dx * (s1 + e1), a[1] + dy * (s1 + e1)];
-          const corners = [
-            [p0[0] + nx, p0[1] + ny],
-            [p1[0] + nx, p1[1] + ny],
-            [p1[0] - nx, p1[1] - ny],
-            [p0[0] - nx, p0[1] - ny]
-          ].map((c) => spatial.toLonLat(c[0], c[1]));
-          corners.push(corners[0]);
-          out.push({
-            type: 'Feature',
-            properties: { level_id: p.level_id, rank: p.rank, category: p.category },
-            geometry: { type: 'Polygon', coordinates: [corners] }
+        const front = sharedSpans(edge, fronts);
+        let solid = [[0, edge.len]];
+        let glass = [];
+        let doors = [];
+        if (p.category === 'room') {
+          glass = cutSpans(front, gaps);
+          solid = cutSpans(cutSpans([[0, edge.len]], front), gaps);
+          front.forEach((span) => {
+            gaps.forEach((gap) => {
+              const g0 = Math.max(span[0], gap[0]);
+              const g1 = Math.min(span[1], gap[1]);
+              if (g1 - g0 > 0.4) doors.push([g0, g1]);
+            });
           });
-        });
+        } else if (p.category === 'corridor' || p.category === 'hall') {
+          solid = cutSpans(cutSpans([[0, edge.len]], front), gaps);
+        } else {
+          solid = cutSpans([[0, edge.len]], gaps);
+        }
+        solid.forEach((seg) => pushPiece(p, a, b, edge.len, seg[0], seg[1], false, false));
+        glass.forEach((seg) => pushPiece(p, a, b, edge.len, seg[0], seg[1], true, false));
+        doors.forEach((seg) => pushPiece(p, a, b, edge.len, seg[0], seg[1], true, true));
       }
     });
   });
@@ -336,6 +436,7 @@ function applyFilters() {
   if (!layersReady || !state.levelId) return;
   scene3d.setActiveLevel(state.levelId, floorRank(state.levelId), state.layers);
   scene3d.setPathwaysVisible(state.layers.pathway);
+  scene3d.setNetworkVisible(state.layers.network);
   scene3d.setUnitTone(state.selectedId, state.hoverId);
 }
 
@@ -394,7 +495,7 @@ function pathSegments(levelId) {
 }
 
 function borderRings(ring, paths) {
-  const width = 0.55;
+  const width = BORDER_WIDTH;
   const meters = ring.map((c) => spatial.toMeters(c[0], c[1]));
   const out = [];
   for (let i = 1; i < meters.length; i++) {
@@ -473,6 +574,8 @@ function shellParts() {
         rank: rank,
         kind: 'wall',
         category: p.category,
+        shopfront: !!p.shopfront,
+        door: !!p.door,
         bottom: z,
         top: z + WALL_HEIGHT,
         color: 0xB4C0CF
@@ -550,6 +653,7 @@ function seatBuilding() {
   scene3d.setShell(shellParts());
   scene3d.setSite(siteFeatures());
   scene3d.setPathways(pathwayLines());
+  scene3d.setNetwork(networkLines());
   refreshLabels();
 }
 
@@ -579,6 +683,7 @@ function loadCollection(fc, fit) {
   scene3d.setSite(siteFeatures());
   clearRoute();
   scene3d.setPathways(pathwayLines());
+  scene3d.setNetwork(networkLines());
   applyFilters();
   syncFloorUi();
   renderLayerChoices();
@@ -592,13 +697,126 @@ function loadCollection(fc, fit) {
   if (fit) fitFloor(true);
 }
 
+function unitFrame(feature) {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  polygonRings(feature).forEach((ring) => {
+    ring.forEach((c) => {
+      const m = spatial.toMeters(c[0], c[1]);
+      minX = Math.min(minX, m[0]);
+      minY = Math.min(minY, m[1]);
+      maxX = Math.max(maxX, m[0]);
+      maxY = Math.max(maxY, m[1]);
+    });
+  });
+  if (!isFinite(minX)) return null;
+  const p = feature.properties;
+  return {
+    level: p.level_id,
+    category: p.category,
+    minX: minX,
+    minY: minY,
+    maxX: maxX,
+    maxY: maxY,
+    w: maxX - minX,
+    h: maxY - minY
+  };
+}
+
+function frameAt(frames, level, x, y) {
+  let found = null;
+  let best = Infinity;
+  frames.forEach((box) => {
+    if (box.level !== level) return;
+    if (x < box.minX - 0.05 || x > box.maxX + 0.05 || y < box.minY - 0.05 || y > box.maxY + 0.05) return;
+    const area = box.w * box.h;
+    if (area < best) {
+      best = area;
+      found = box;
+    }
+  });
+  return found;
+}
+
 function pathwayLines() {
+  const frames = [];
+  collection.features.forEach((f) => {
+    if (!f.properties || f.properties.feature_type !== 'unit') return;
+    const frame = unitFrame(f);
+    if (frame) frames.push(frame);
+  });
+  const lines = [];
+  const pending = [];
+  collection.features.forEach((f) => {
+    const p = f.properties || {};
+    if (p.feature_type !== 'pathway') return;
+    const elev = levelElev(p.level_id);
+    lineParts(f).forEach((line) => {
+      for (let i = 1; i < line.length; i++) {
+        const a = spatial.toMeters(line[i - 1][0], line[i - 1][1]);
+        const b = spatial.toMeters(line[i][0], line[i][1]);
+        const dx = Math.abs(b[0] - a[0]);
+        const dy = Math.abs(b[1] - a[1]);
+        const item = {
+          level: p.level_id,
+          elev: elev,
+          pts: [line[i - 1], line[i]].map((c) => scene3d.toScene(c)),
+          a: a,
+          b: b,
+          horizontal: dy <= 0.08 && dx > 0.08,
+          vertical: dx <= 0.08 && dy > 0.08
+        };
+        if (p.outdoor) lines.push(item);
+        else pending.push(item);
+      }
+    });
+  });
+  const spines = pending.filter((seg) => {
+    const box = frameAt(frames, seg.level, (seg.a[0] + seg.b[0]) / 2, (seg.a[1] + seg.b[1]) / 2);
+    if (!box || (box.category !== 'corridor' && box.category !== 'hall')) return false;
+    if (box.w >= box.h) {
+      const cy = (box.minY + box.maxY) / 2;
+      return seg.horizontal && Math.abs(seg.a[1] - cy) <= 0.45 && Math.abs(seg.b[1] - cy) <= 0.45;
+    }
+    const cx = (box.minX + box.maxX) / 2;
+    return seg.vertical && Math.abs(seg.a[0] - cx) <= 0.45 && Math.abs(seg.b[0] - cx) <= 0.45;
+  });
+  const near = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.6;
+  pending.forEach((seg) => {
+    if (spines.includes(seg)) {
+      lines.push(seg);
+      return;
+    }
+    const mid = frameAt(frames, seg.level, (seg.a[0] + seg.b[0]) / 2, (seg.a[1] + seg.b[1]) / 2);
+    if (mid) return;
+    const joined = spines.some((spine) => {
+      if (spine.level !== seg.level) return false;
+      if (seg.horizontal !== spine.horizontal || seg.vertical !== spine.vertical) return false;
+      if (seg.horizontal && Math.abs(seg.a[1] - spine.a[1]) > 0.25) return false;
+      if (seg.vertical && Math.abs(seg.a[0] - spine.a[0]) > 0.25) return false;
+      return near(seg.a, spine.a) || near(seg.a, spine.b) || near(seg.b, spine.a) || near(seg.b, spine.b);
+    });
+    if (joined) lines.push(seg);
+  });
+  return lines;
+}
+
+function networkLines() {
   const lines = [];
   collection.features.forEach((f) => {
-    if (f.properties.feature_type !== 'pathway') return;
-    const elev = levelElev(f.properties.level_id);
+    const p = f.properties || {};
+    if (p.feature_type !== 'pathway') return;
+    const elev = levelElev(p.level_id);
     lineParts(f).forEach((line) => {
-      lines.push({ level: f.properties.level_id, elev, pts: line.map((c) => scene3d.toScene(c)) });
+      for (let i = 1; i < line.length; i++) {
+        lines.push({
+          level: p.level_id,
+          elev: elev,
+          pts: [line[i - 1], line[i]].map((c) => scene3d.toScene(c))
+        });
+      }
     });
   });
   return lines;
@@ -647,7 +865,7 @@ function renderLayerChoices() {
     btn.type = 'button';
     btn.className = 'choice-btn' + (state.layers[cat.id] ? ' active' : '');
     btn.setAttribute('aria-pressed', state.layers[cat.id] ? 'true' : 'false');
-    btn.innerHTML = '<span class="choice-copy"><strong>' + esc(cat.label) + '</strong><span>' + (cat.lineOnly ? 'Walk network' : 'Show on the plan') + '</span></span>';
+    btn.innerHTML = '<span class="choice-copy"><strong>' + esc(cat.label) + '</strong><span>' + esc(cat.note || 'Show on the plan') + '</span></span>';
     btn.addEventListener('click', () => toggleLayer(cat.id));
     list.appendChild(btn);
   });
@@ -695,6 +913,7 @@ function setFloor(id, fly) {
   const changed = id !== state.levelId;
   state.levelId = id;
   applyFilters();
+  placeDevice();
   syncFloorUi();
   refreshLabels();
   updateStatus();
@@ -1181,10 +1400,86 @@ function clearRoute() {
   playToken += 1;
   state.route = null;
   state.step = 0;
+  hideRideCaption();
+  stopDeviceTrack();
   if (scene3d) scene3d.clearRoute();
   if (map) map.stop();
   renderSteps();
   updateStatus();
+}
+
+let deviceWatch = null;
+let deviceFix = null;
+let deviceNoted = false;
+
+function placeDevice() {
+  if (!deviceFix || !state.route || !scene3d) return;
+  scene3d.setUser(deviceFix.lngLat, levelElev(state.levelId), deviceFix.heading);
+}
+
+function startDeviceTrack() {
+  if (deviceWatch != null) return;
+  if (!navigator.geolocation) {
+    IndoorUI.toast('This device has no location.');
+    return;
+  }
+  if (!window.isSecureContext) {
+    IndoorUI.toast('Location needs a secure page.');
+    return;
+  }
+  deviceNoted = false;
+  deviceWatch = navigator.geolocation.watchPosition((pos) => {
+    if (!state.route) {
+      stopDeviceTrack();
+      return;
+    }
+    deviceFix = {
+      lngLat: [pos.coords.longitude, pos.coords.latitude],
+      heading: pos.coords.heading
+    };
+    placeDevice();
+    if (!deviceNoted) {
+      deviceNoted = true;
+      IndoorUI.toast('Tracking this device.');
+    }
+  }, (err) => {
+    stopDeviceTrack();
+    IndoorUI.toast(err && err.code === 1 ? 'Location permission was denied.' : 'This device location is unavailable.');
+  }, { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 });
+}
+
+function stopDeviceTrack() {
+  if (deviceWatch != null && navigator.geolocation) navigator.geolocation.clearWatch(deviceWatch);
+  deviceWatch = null;
+  deviceFix = null;
+  if (scene3d) scene3d.setUser(null);
+}
+
+let rideCaptionTimer = 0;
+
+function rideCaptionText(step) {
+  const mode = step.mode === 'stair' ? 'Stairs' : step.mode === 'escalator' ? 'Escalator' : 'Elevator';
+  return mode + ' to ' + (step.level_name || floorName(step.toLevel));
+}
+
+function showRideCaption(step) {
+  const el = document.getElementById('ride-caption');
+  document.getElementById('ride-caption-text').textContent = rideCaptionText(step);
+  document.getElementById('ride-caption-swatch').style.background = '#' + floorGround(floorRank(step.toLevel)).toString(16).padStart(6, '0');
+  window.clearTimeout(rideCaptionTimer);
+  el.classList.add('show');
+  el.setAttribute('aria-hidden', 'false');
+}
+
+function hideRideCaption(delay) {
+  const el = document.getElementById('ride-caption');
+  window.clearTimeout(rideCaptionTimer);
+  const close = () => {
+    el.classList.remove('show');
+    el.setAttribute('aria-hidden', 'true');
+  };
+  if (delay) rideCaptionTimer = window.setTimeout(close, delay);
+  else close();
 }
 
 function buildPlan(result) {
@@ -1231,6 +1526,7 @@ function showRoute(result) {
   renderSteps();
   updateStatus();
   startPlayback();
+  startDeviceTrack();
 }
 
 let routeStarted = 0;
@@ -1262,6 +1558,7 @@ function frameRoute(levelId, duration) {
 function startPlayback() {
   if (!state.route) return;
   playToken += 1;
+  hideRideCaption();
   scene3d.reset();
   scene3d.play();
   if (state.levelId !== state.route.from.level_id) setFloor(state.route.from.level_id, false);
@@ -1344,6 +1641,7 @@ function goToStep(index) {
   const step = state.route && state.route.steps[index];
   if (!step) return;
   if (scene3d.isPlaying()) scene3d.pause();
+  hideRideCaption();
   state.follow = false;
   highlightStep(index);
   if (step.level_id && step.level_id !== state.levelId) {
@@ -1916,6 +2214,7 @@ function attachIndoor(token) {
   scene3d.setShell(shellParts());
   scene3d.setSite(siteFeatures());
   scene3d.setPathways(pathwayLines());
+  scene3d.setNetwork(networkLines());
   scene3d.setSolid(state.is3d);
   applyFilters();
   refreshLabels();
@@ -2074,7 +2373,7 @@ function startMap(style) {
   map = new maplibregl.Map({
     container: 'viewDiv',
     style: style,
-    center: [31.416842595122688, 30.70118819253868],
+    center: [31.404683316823288, 31.057273877817757],
     zoom: 18,
     pitch: 0,
     bearing: 0,
@@ -2099,9 +2398,15 @@ function startMap(style) {
       const left = Math.max(900, DRAW_MS - (performance.now() - routeStarted));
       frameRoute(levelId, left);
     },
-    onStep: (index) => highlightStep(index),
+    onStep: (index) => {
+      highlightStep(index);
+      const step = state.route && state.route.steps[index];
+      if (step && step.kind === 'transition' && scene3d.isPlaying() && !reducedMotion()) showRideCaption(step);
+      else hideRideCaption(900);
+    },
     onMove: followCamera,
     onDone: (info) => {
+      hideRideCaption();
       if (!info.skipped && state.route) IndoorUI.toast('Arrived at ' + state.route.to.name);
     }
   });

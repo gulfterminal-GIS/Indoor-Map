@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 
 const DRAW_SECONDS = 8;
+const RIDE_LEN = 16;
 const TRAIL_Z = 0.06;
 const PIN_Z = 0.08;
+const SITE_SCALE = 50 / 220;
 
 const DISC = new THREE.CircleGeometry(1, 40);
 const RING = new THREE.RingGeometry(0.78, 1, 48);
@@ -79,6 +81,7 @@ const MAT = {
   casing: basic(0xFFFFFF, { depthWrite: false }),
   route: basic(0x1565A8, { depthWrite: false }),
   path: basic(0x1565A8, { depthWrite: false, transparent: true, opacity: 0.55 }),
+  network: basic(0x5C6B82, { depthWrite: false, transparent: true, opacity: 0.85 }),
   white: basic(0xFFFFFF),
   start: basic(0x15803D),
   end: basic(0xB42318),
@@ -159,9 +162,11 @@ export function createScene3D(map, options) {
   const shellGroup = new THREE.Group();
   const siteGroup = new THREE.Group();
   const pathGroup = new THREE.Group();
+  const networkGroup = new THREE.Group();
   const routeGroup = new THREE.Group();
   const pinGroup = new THREE.Group();
-  world.add(siteGroup, shellGroup, pathGroup, routeGroup, pinGroup);
+  const userGroup = new THREE.Group();
+  world.add(siteGroup, shellGroup, networkGroup, pathGroup, routeGroup, pinGroup, userGroup);
 
   let activeLevel = null;
   let shellRank = 0;
@@ -233,9 +238,13 @@ export function createScene3D(map, options) {
     yellow: basic(0xE2B43A)
   };
   let pathwaysOn = false;
+  let networkOn = false;
   let pathLines = [];
+  let networkPathLines = [];
   let trailWidth = 0.7;
   let draft = null;
+  let here = null;
+  let userMark = null;
   let labels = [];
 
   const pb = {
@@ -338,6 +347,7 @@ export function createScene3D(map, options) {
     pinGroup.children.forEach((pin) => {
       pin.scale.setScalar(pinScale);
     });
+    if (userMark) userMark.scale.setScalar(pinScale);
   }
 
   const labelPoint = new THREE.Vector4();
@@ -397,20 +407,37 @@ export function createScene3D(map, options) {
     rebuildPaths();
   }
 
+  function setNetwork(lines) {
+    networkPathLines = lines || [];
+    rebuildPaths();
+  }
+
+  function addPathMeshes(group, lines, material, width, order) {
+    lines.forEach((line) => {
+      const mesh = new THREE.Mesh(ribbon(line.pts, width, line.elev + TRAIL_Z - 0.01), material);
+      mesh.userData.level = line.level;
+      mesh.renderOrder = order;
+      group.add(mesh);
+    });
+  }
+
   function rebuildPaths() {
     clearGroup(pathGroup);
+    clearGroup(networkGroup);
     const width = Math.max(0.14, trailWidth * 0.3);
-    pathLines.forEach((line) => {
-      const mesh = new THREE.Mesh(ribbon(line.pts, width, line.elev + TRAIL_Z - 0.01), MAT.path);
-      mesh.userData.level = line.level;
-      mesh.renderOrder = 1;
-      pathGroup.add(mesh);
-    });
+    addPathMeshes(networkGroup, networkPathLines, MAT.network, width * 0.72, 1);
+    addPathMeshes(pathGroup, pathLines, MAT.path, width, 2);
     syncVisibility();
   }
 
   function setPathwaysVisible(on) {
     pathwaysOn = on;
+    syncVisibility();
+    map.triggerRepaint();
+  }
+
+  function setNetworkVisible(on) {
+    networkOn = on;
     syncVisibility();
     map.triggerRepaint();
   }
@@ -468,6 +495,11 @@ export function createScene3D(map, options) {
         applySkin(m);
         return;
       }
+      if (d.kind === 'shopfront') {
+        const catOn = !d.category || !shellCats || shellCats[d.category] !== false;
+        m.visible = solid && d.level === activeLevel && catOn;
+        return;
+      }
       if (d.kind === 'border') {
         const catOn = !d.category || !shellCats || shellCats[d.category] !== false;
         m.visible = !solid && d.level === activeLevel && catOn;
@@ -488,6 +520,7 @@ export function createScene3D(map, options) {
       applySkin(m);
     });
     pathGroup.children.forEach((m) => { m.visible = pathwaysOn && m.userData.level === activeLevel; });
+    networkGroup.children.forEach((m) => { m.visible = networkOn && m.userData.level === activeLevel; });
     routeGroup.children.forEach((m) => {
       const onLevel = m.userData.level === activeLevel;
       if (m.userData.kind === 'arrow') m.visible = onLevel && m.userData.dist <= m.userData.limit + 0.2;
@@ -507,7 +540,7 @@ export function createScene3D(map, options) {
     const xy = toScene(part.lngLat);
     const tree = new THREE.Group();
     tree.position.set(xy[0], xy[1], surfaceZ(part.lngLat));
-    tree.scale.setScalar(part.scale || 1);
+    tree.scale.setScalar((part.scale || 1) * SITE_SCALE);
     const lean = ((Math.abs(part.lngLat[0]) * 10000) % 1) - 0.5;
     tree.rotation.x = lean * 0.1;
     tree.rotation.y = lean * 0.16;
@@ -592,15 +625,15 @@ export function createScene3D(map, options) {
   }
 
   function addRoad(line) {
-    const pts = drapeLine(line, 0.55);
+    const pts = drapeLine(line, 0.55 * SITE_SCALE);
     if (pts.length < 2) return;
-    const asphalt = new THREE.Mesh(roadRibbon(pts, 6.4), basic(0x9AA3AD));
+    const asphalt = new THREE.Mesh(roadRibbon(pts, 6.4 * SITE_SCALE), basic(0x9AA3AD));
     asphalt.userData.ownMaterial = true;
     siteGroup.add(asphalt);
     const dashes = [];
     let travelled = 0;
-    const dash = 3.2;
-    const gap = 2.1;
+    const dash = 3.2 * SITE_SCALE;
+    const gap = 2.1 * SITE_SCALE;
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1];
       const b = pts[i];
@@ -610,7 +643,7 @@ export function createScene3D(map, options) {
       while (walked < len - 0.05) {
         const into = (travelled + walked) % (dash + gap);
         const run = into < dash ? Math.min(dash - into, len - walked) : Math.min(dash + gap - into, len - walked);
-        if (into < dash && run > 0.15) {
+        if (into < dash && run > 0.15 * SITE_SCALE) {
           const t0 = walked / len;
           const t1 = (walked + run) / len;
           const z0 = a[2] + 0.06;
@@ -628,7 +661,7 @@ export function createScene3D(map, options) {
     if (!dashes.length) return;
     const markPos = [];
     dashes.forEach((seg) => {
-      const piece = roadRibbon([seg.slice(0, 3), seg.slice(3)], 0.38);
+      const piece = roadRibbon([seg.slice(0, 3), seg.slice(3)], 0.38 * SITE_SCALE);
       const arr = piece.attributes.position.array;
       for (let k = 0; k < arr.length; k++) markPos.push(arr[k]);
       piece.dispose();
@@ -643,7 +676,8 @@ export function createScene3D(map, options) {
   function addCar(part) {
     const xy = toScene(part.lngLat);
     const car = new THREE.Group();
-    car.position.set(xy[0], xy[1], surfaceZ(part.lngLat) + 0.55);
+    car.position.set(xy[0], xy[1], surfaceZ(part.lngLat) + 0.55 * SITE_SCALE);
+    car.scale.setScalar(SITE_SCALE);
     car.rotation.z = part.heading || 0;
     const paint = basic(part.color || 0xF4F7FA);
     const glass = basic(0x243044);
@@ -857,6 +891,73 @@ export function createScene3D(map, options) {
     addMerged(mullionPos, FIN.mullion, 2, part);
   }
 
+  function wallRun(ring) {
+    const pts = ringScene(ring);
+    if (pts.length < 4) return null;
+    let cx = 0;
+    let cy = 0;
+    pts.forEach((p) => { cx += p[0]; cy += p[1]; });
+    cx /= pts.length;
+    cy /= pts.length;
+    let len = 0;
+    let ux = 1;
+    let uy = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i];
+      const b = pts[(i + 1) % pts.length];
+      const d = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (d > len) {
+        len = d;
+        ux = (b[0] - a[0]) / d;
+        uy = (b[1] - a[1]) / d;
+      }
+    }
+    if (len < 0.2) return null;
+    return { cx: cx, cy: cy, ux: ux, uy: uy, len: len };
+  }
+
+  function addShopfront(ring, part) {
+    const run = wallRun(ring);
+    if (!run) return;
+    const group = new THREE.Group();
+    group.userData = {
+      kind: 'shopfront',
+      level: part.level,
+      rank: part.rank || 0,
+      category: part.category || 'room'
+    };
+    const angle = Math.atan2(run.uy, run.ux);
+    const place = (len, thick, z0, z1, along, material, order) => {
+      const h = Math.max(0.02, z1 - z0);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.04, len), thick, h), material);
+      mesh.position.set(run.cx + run.ux * along, run.cy + run.uy * along, (z0 + z1) / 2);
+      mesh.rotation.z = angle;
+      mesh.renderOrder = order;
+      mesh.frustumCulled = false;
+      group.add(mesh);
+    };
+    const z0 = part.bottom;
+    const z1 = part.top;
+    const head = z1 - 0.22;
+    const sill = part.door ? z0 + 0.02 : z0 + 0.16;
+    const span = Math.max(0.2, run.len - 0.08);
+    place(span, 0.08, head, z1, 0, FIN.spandrel, 3);
+    if (!part.door) place(span, 0.08, z0, sill, 0, FIN.kick, 3);
+    [-1, 1].forEach((side) => {
+      place(0.07, 0.08, z0, z1, side * (run.len / 2 - 0.04), FIN.mullion, 3);
+    });
+    const inner = Math.max(0.2, run.len - 0.16);
+    const count = part.door ? 1 : Math.max(1, Math.round(inner / 1.7));
+    const step = inner / count;
+    const start = -inner / 2;
+    for (let k = 0; k < count; k++) {
+      place(Math.max(0.2, step - 0.08), 0.04, sill, head, start + step * k + step / 2, FIN.glass, 2);
+      if (k > 0) place(0.06, 0.08, sill, head, start + step * k, FIN.mullion, 3);
+    }
+    if (part.door) place(0.035, 0.06, z0 + 0.95, z0 + 1.15, start + inner * 0.72, FIN.mullion, 3);
+    shellGroup.add(group);
+  }
+
   function addBox(parent, sx, sy, sz, x, y, z, material, rotX, order) {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), material);
     mesh.position.set(x, y, z);
@@ -1019,29 +1120,33 @@ export function createScene3D(map, options) {
         const p = toScene(ring[i]);
         shape.lineTo(p[0], p[1]);
       }
-      const depth = Math.max(0.02, part.top - part.bottom);
-      let geo;
-      try {
-        geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false });
-      } catch (err) {
-        return;
+      if (part.kind === 'wall' && part.shopfront) {
+        addShopfront(ring, part);
+      } else {
+        const depth = Math.max(0.02, part.top - part.bottom);
+        let geo;
+        try {
+          geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false });
+        } catch (err) {
+          return;
+        }
+        geo.translate(0, 0, part.bottom);
+        const tex = surfaceTexture(part);
+        if (tex) paintUVs(geo, tex.tile);
+        const mesh = new THREE.Mesh(geo, basic(part.color));
+        mesh.userData = {
+          ownMaterial: true,
+          level: part.level,
+          rank: part.rank || 0,
+          kind: part.kind,
+          category: part.category || '',
+          id: part.id,
+          color: part.color,
+          tex: tex ? tex.map : null
+        };
+        if (tex && solid) mesh.material.map = tex.map;
+        shellGroup.add(mesh);
       }
-      geo.translate(0, 0, part.bottom);
-      const tex = surfaceTexture(part);
-      if (tex) paintUVs(geo, tex.tile);
-      const mesh = new THREE.Mesh(geo, basic(part.color));
-      mesh.userData = {
-        ownMaterial: true,
-        level: part.level,
-        rank: part.rank || 0,
-        kind: part.kind,
-        category: part.category || '',
-        id: part.id,
-        color: part.color,
-        tex: tex ? tex.map : null
-      };
-      if (tex && solid) mesh.material.map = tex.map;
-      shellGroup.add(mesh);
       if (part.kind === 'plate') addFacade(ring, part);
       if (part.kind === 'unit' && part.above && part.category === 'escalator') addEscalator(ring, part);
       if (part.kind === 'unit' && part.above && part.category === 'stair') addStair(ring, part);
@@ -1129,6 +1234,81 @@ export function createScene3D(map, options) {
       pb.heading = heading;
       pb.targetHeading = heading;
     }
+    placeHere();
+  }
+
+  function ensureHere() {
+    if (here) return here;
+    here = new THREE.Group();
+    here.frustumCulled = false;
+    here.userData.kind = 'here';
+    here.userData.level = null;
+    const halo = new THREE.Mesh(DISC, MAT.white);
+    halo.scale.setScalar(0.95);
+    halo.position.z = 0.02;
+    halo.renderOrder = 6;
+    const dot = new THREE.Mesh(DISC, MAT.route);
+    dot.scale.setScalar(0.62);
+    dot.position.z = 0.04;
+    dot.renderOrder = 7;
+    const arrow = new THREE.Mesh(ARROW, MAT.white);
+    arrow.scale.setScalar(0.5);
+    arrow.position.z = 0.06;
+    arrow.renderOrder = 8;
+    here.add(halo, dot, arrow);
+    pinGroup.add(here);
+    return here;
+  }
+
+  function ensureUser() {
+    if (userMark) return userMark;
+    userMark = new THREE.Group();
+    userMark.frustumCulled = false;
+    const halo = new THREE.Mesh(DISC, MAT.white);
+    halo.scale.setScalar(1.15);
+    halo.position.z = 0.02;
+    halo.renderOrder = 9;
+    const dot = new THREE.Mesh(DISC, MAT.start);
+    dot.scale.setScalar(0.72);
+    dot.position.z = 0.05;
+    dot.renderOrder = 10;
+    const arrow = new THREE.Mesh(ARROW, MAT.white);
+    arrow.scale.setScalar(0.46);
+    arrow.position.z = 0.08;
+    arrow.renderOrder = 11;
+    arrow.name = 'heading';
+    userMark.add(halo, dot, arrow);
+    userGroup.add(userMark);
+    return userMark;
+  }
+
+  function setUser(lngLat, elev, heading) {
+    if (!lngLat) {
+      if (userMark) userMark.visible = false;
+      map.triggerRepaint();
+      return;
+    }
+    const marker = ensureUser();
+    const xy = toScene(lngLat);
+    marker.position.set(xy[0], xy[1], (elev || 0) + PIN_Z + 0.12);
+    const arrow = marker.getObjectByName('heading');
+    const aimed = typeof heading === 'number' && isFinite(heading);
+    if (arrow) arrow.visible = aimed;
+    if (aimed) {
+      const rad = heading * Math.PI / 180;
+      marker.rotation.z = Math.atan2(Math.cos(rad), Math.sin(rad));
+    }
+    marker.visible = true;
+    map.triggerRepaint();
+  }
+
+  function placeHere() {
+    if (!pb.plan) return;
+    const marker = ensureHere();
+    marker.position.set(pb.x, pb.y, (pb.z || 0) + PIN_Z + 0.05);
+    marker.rotation.z = pb.heading || 0;
+    marker.userData.level = pb.level;
+    marker.visible = !activeLevel || marker.userData.level === activeLevel;
   }
 
   function firstHeading(plan) {
@@ -1203,6 +1383,7 @@ export function createScene3D(map, options) {
     pb.pulses = [];
     clearGroup(routeGroup);
     clearGroup(pinGroup);
+    here = null;
     if (draft) setDraft(null);
     syncVisibility();
     map.triggerRepaint();
@@ -1247,7 +1428,7 @@ export function createScene3D(map, options) {
     if (pb.done) reset();
     pb.playing = true;
     pb.elapsed = 0;
-    pb.total = pb.plan.legs.reduce((sum, leg) => sum + (leg.kind === 'walk' ? leg.length : 0), 0);
+    pb.total = pb.plan.legs.reduce((sum, leg) => sum + (leg.kind === 'walk' ? leg.length : RIDE_LEN), 0);
     pb.announced = -1;
     pb.plan.legs.forEach((leg) => {
       if (leg.kind === 'walk') {
@@ -1329,16 +1510,22 @@ export function createScene3D(map, options) {
           else remain = Math.max(0, remain);
         }
       } else if (active) {
-        if (!leg.switched) {
+        const climbed = Math.max(0, Math.min(RIDE_LEN, remain));
+        const u = climbed / RIDE_LEN;
+        leg.t = u;
+        const arrived = u >= 1;
+        if (arrived && !leg.switched) {
           leg.switched = true;
-          leg.t = 1;
           if (leg.to !== activeLevel) hooks.onLevel(leg.to);
         }
-        level = leg.to;
-        elev = leg.toElev;
+        level = arrived ? leg.to : leg.from;
+        elev = leg.fromElev + (leg.toElev - leg.fromElev) * u;
         x = leg.xy[0];
         y = leg.xy[1];
         step = leg.step;
+        remain -= RIDE_LEN;
+        if (remain < -0.001) active = false;
+        else remain = Math.max(0, remain);
       }
     });
     pb.level = level;
@@ -1360,6 +1547,7 @@ export function createScene3D(map, options) {
       else hooks.onMove({ lngLat: fromScene(pb.x, pb.y), elev: pb.z });
     }
     pb.heading = lerpAngle(pb.heading, pb.targetHeading, 1 - Math.exp(-dt * 8));
+    placeHere();
     pb.pulses.forEach((pulse) => {
       const t = (now / 1400) % 1;
       pulse.scale.setScalar(0.7 + t * 1.6);
@@ -1395,6 +1583,8 @@ export function createScene3D(map, options) {
     setLabels,
     setPathways,
     setPathwaysVisible,
+    setNetwork,
+    setNetworkVisible,
     setShell,
     setSite,
     setUnitTone,
@@ -1403,6 +1593,7 @@ export function createScene3D(map, options) {
     setRoute,
     clearRoute,
     setDraft,
+    setUser,
     reset,
     play,
     pause,

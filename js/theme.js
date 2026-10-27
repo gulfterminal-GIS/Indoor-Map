@@ -37,6 +37,7 @@ IndoorUI.glassTargets = function () {
   ].concat([].slice.call(document.querySelectorAll('.loading-card')))
     .concat([].slice.call(document.querySelectorAll('.flyout')))
     .concat([].slice.call(document.querySelectorAll('.bookmark-pill')))
+    .concat([document.getElementById('ride-caption')])
     .filter(Boolean);
 };
 
