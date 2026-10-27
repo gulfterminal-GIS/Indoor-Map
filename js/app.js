@@ -2373,7 +2373,7 @@ function startMap(style) {
   map = new maplibregl.Map({
     container: 'viewDiv',
     style: style,
-    center: [31.404683316823288, 31.057273877817757],
+    center: [31.4048344, 31.0570927],
     zoom: 18,
     pitch: 0,
     bearing: 0,

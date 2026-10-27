@@ -84,6 +84,8 @@ const MAT = {
   network: basic(0x5C6B82, { depthWrite: false, transparent: true, opacity: 0.85 }),
   white: basic(0xFFFFFF),
   start: basic(0x15803D),
+  userTrail: basic(0x15803D, { depthWrite: false }),
+  userCasing: basic(0xFFFFFF, { depthWrite: false }),
   end: basic(0xB42318),
   via: basic(0x1B2A4A),
   shadow: basic(0x142038, { transparent: true, opacity: 0.22, depthWrite: false }),
@@ -245,6 +247,13 @@ export function createScene3D(map, options) {
   let draft = null;
   let here = null;
   let userMark = null;
+  let userPts = [];
+  let userDrawn = 0;
+  let userElev = 0;
+  let userCore = null;
+  let userCasing = null;
+  const USER_MIN_STEP = 0.45;
+  const USER_DRAW = 3.2;
   let labels = [];
 
   const pb = {
@@ -342,6 +351,7 @@ export function createScene3D(map, options) {
       trailWidth = width;
       rebuildTrails();
       rebuildPaths();
+      if (userPts.length > 1) paintUserTrail();
     }
     const pinScale = Math.max(1, Math.min(2.3, 18 * mpp));
     pinGroup.children.forEach((pin) => {
@@ -1282,15 +1292,109 @@ export function createScene3D(map, options) {
     return userMark;
   }
 
+  function trailSpan(pts) {
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) {
+      cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    }
+    return cum;
+  }
+
+  function trailSlice(pts, cum, dist) {
+    if (pts.length < 2 || dist <= 0) return [];
+    const total = cum[cum.length - 1];
+    if (dist >= total) return pts;
+    let i = 1;
+    while (i < cum.length - 1 && cum[i] < dist) i++;
+    const seg = cum[i] - cum[i - 1];
+    const u = seg === 0 ? 0 : (dist - cum[i - 1]) / seg;
+    const a = pts[i - 1];
+    const b = pts[i];
+    return pts.slice(0, i).concat([[a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u]]);
+  }
+
+  function ensureUserTrail() {
+    if (userCore) return;
+    userCasing = new THREE.Mesh(new THREE.BufferGeometry(), MAT.userCasing);
+    userCore = new THREE.Mesh(new THREE.BufferGeometry(), MAT.userTrail);
+    userCasing.frustumCulled = false;
+    userCore.frustumCulled = false;
+    userCasing.renderOrder = 4;
+    userCore.renderOrder = 5;
+    userCasing.visible = false;
+    userCore.visible = false;
+    userGroup.add(userCasing, userCore);
+  }
+
+  function paintUserTrail() {
+    ensureUserTrail();
+    const cum = trailSpan(userPts);
+    const total = cum.length ? cum[cum.length - 1] : 0;
+    const pts = trailSlice(userPts, cum, Math.min(userDrawn, total));
+    const show = pts.length > 1;
+    userCasing.visible = show;
+    userCore.visible = show;
+    if (!show) return;
+    const width = Math.max(0.16, trailWidth * 0.62);
+    userCasing.geometry.dispose();
+    userCore.geometry.dispose();
+    userCasing.geometry = ribbon(pts, width + Math.max(0.08, width * 0.45), userElev + TRAIL_Z);
+    userCore.geometry = ribbon(pts, width, userElev + TRAIL_Z + 0.004);
+  }
+
+  function clearUserTrail() {
+    userPts = [];
+    userDrawn = 0;
+    if (userCore) userCore.visible = false;
+    if (userCasing) userCasing.visible = false;
+  }
+
+  function userTrailLive() {
+    if (userPts.length < 2) return false;
+    const cum = trailSpan(userPts);
+    return userDrawn < cum[cum.length - 1] - 0.01;
+  }
+
+  function extendUserTrail(xy) {
+    if (!userPts.length) {
+      userPts.push([xy[0], xy[1]]);
+      return;
+    }
+    const last = userPts[userPts.length - 1];
+    const step = Math.hypot(xy[0] - last[0], xy[1] - last[1]);
+    if (step < USER_MIN_STEP) return;
+    userPts.push([xy[0], xy[1]]);
+    if (step > 60) {
+      const cum = trailSpan(userPts);
+      userDrawn = cum[cum.length - 1];
+      paintUserTrail();
+    }
+    while (userPts.length > 360) {
+      const drop = Math.hypot(userPts[1][0] - userPts[0][0], userPts[1][1] - userPts[0][1]);
+      userPts.shift();
+      userDrawn = Math.max(0, userDrawn - drop);
+    }
+  }
+
+  function tickUserTrail(dt) {
+    if (!userTrailLive()) return;
+    const cum = trailSpan(userPts);
+    const total = cum[cum.length - 1];
+    userDrawn = reduceMotion ? total : Math.min(total, userDrawn + USER_DRAW * dt);
+    paintUserTrail();
+  }
+
   function setUser(lngLat, elev, heading) {
     if (!lngLat) {
+      clearUserTrail();
       if (userMark) userMark.visible = false;
       map.triggerRepaint();
       return;
     }
     const marker = ensureUser();
     const xy = toScene(lngLat);
-    marker.position.set(xy[0], xy[1], (elev || 0) + PIN_Z + 0.12);
+    const z = elev || 0;
+    marker.position.set(xy[0], xy[1], z + PIN_Z + 0.12);
     const arrow = marker.getObjectByName('heading');
     const aimed = typeof heading === 'number' && isFinite(heading);
     if (arrow) arrow.visible = aimed;
@@ -1298,6 +1402,11 @@ export function createScene3D(map, options) {
       const rad = heading * Math.PI / 180;
       marker.rotation.z = Math.atan2(Math.cos(rad), Math.sin(rad));
     }
+    const elevChanged = Math.abs(z - userElev) > 0.001;
+    userElev = z;
+    extendUserTrail(xy);
+    if (elevChanged) paintUserTrail();
+    if (userTrailLive()) wake(2000);
     marker.visible = true;
     map.triggerRepaint();
   }
@@ -1548,6 +1657,7 @@ export function createScene3D(map, options) {
     }
     pb.heading = lerpAngle(pb.heading, pb.targetHeading, 1 - Math.exp(-dt * 8));
     placeHere();
+    tickUserTrail(dt);
     pb.pulses.forEach((pulse) => {
       const t = (now / 1400) % 1;
       pulse.scale.setScalar(0.7 + t * 1.6);
@@ -1562,7 +1672,7 @@ export function createScene3D(map, options) {
     last = now;
     tick(dt, now);
     map.triggerRepaint();
-    if (pb.playing || now < idleUntil || (solid && escalatorLive && !reduceMotion)) {
+    if (pb.playing || userTrailLive() || now < idleUntil || (solid && escalatorLive && !reduceMotion)) {
       raf = requestAnimationFrame(loop);
     } else {
       last = 0;
