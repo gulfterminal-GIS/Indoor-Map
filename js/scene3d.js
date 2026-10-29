@@ -4,7 +4,7 @@ const DRAW_SECONDS = 8;
 const RIDE_LEN = 16;
 const TRAIL_Z = 0.06;
 const PIN_Z = 0.08;
-const SITE_SCALE = 50 / 220;
+const SITE_SCALE = 60 / 220;
 
 const DISC = new THREE.CircleGeometry(1, 40);
 const RING = new THREE.RingGeometry(0.78, 1, 48);
@@ -78,8 +78,8 @@ function basic(color, extra) {
 }
 
 const MAT = {
-  casing: basic(0xFFFFFF, { depthWrite: false }),
-  route: basic(0x1565A8, { depthWrite: false }),
+  casing: basic(0xFFFFFF, { depthWrite: false, depthTest: false }),
+  route: basic(0x1565A8, { depthWrite: false, depthTest: false }),
   path: basic(0x1565A8, { depthWrite: false, transparent: true, opacity: 0.55 }),
   network: basic(0x5C6B82, { depthWrite: false, transparent: true, opacity: 0.85 }),
   white: basic(0xFFFFFF),
@@ -346,27 +346,36 @@ export function createScene3D(map, options) {
 
   function applySizes() {
     const mpp = metersPerPixel();
-    const width = Math.max(0.5, Math.min(2.4, 7 * mpp));
+    const narrow = (map.getCanvas().clientWidth || window.innerWidth) <= 700;
+    const width = Math.max(narrow ? 0.32 : 0.5, Math.min(narrow ? 1.15 : 2.4, 7 * mpp));
     if (Math.abs(width - trailWidth) / trailWidth > 0.08) {
       trailWidth = width;
       rebuildTrails();
       rebuildPaths();
       if (userPts.length > 1) paintUserTrail();
     }
-    const pinScale = Math.max(1, Math.min(2.3, 18 * mpp));
+    const pinScale = Math.max(narrow ? 0.72 : 1, Math.min(narrow ? 1.35 : 2.3, 18 * mpp));
     pinGroup.children.forEach((pin) => {
       pin.scale.setScalar(pinScale);
     });
-    if (userMark) userMark.scale.setScalar(pinScale);
+    if (userMark) userMark.scale.setScalar(pinScale * 0.55);
   }
 
   const labelPoint = new THREE.Vector4();
+
+  function labelsOverlap(a, b) {
+    const gap = 4;
+    return a.x < b.x + b.w + gap && a.x + a.w + gap > b.x && a.y < b.y + b.h + gap && a.y + a.h + gap > b.y;
+  }
 
   function placeLabels() {
     if (!labels.length || !haveProj) return;
     const canvas = map.getCanvas();
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
+    const narrow = w <= 700;
+    const scale = Math.min(narrow ? 1 : 1.2, Math.max(0.32, Math.pow(2, map.getZoom() - 18.4))) * (narrow ? 0.86 : 1);
+    const ready = [];
     labels.forEach((label) => {
       const xy = toScene(label.lngLat);
       labelPoint.set(xy[0], -xy[1], label.height, 1).applyMatrix4(camera.projectionMatrix);
@@ -380,12 +389,27 @@ export function createScene3D(map, options) {
         label.el.style.visibility = 'hidden';
         return;
       }
-      const scale = Math.min(1.2, Math.max(0.32, Math.pow(2, map.getZoom() - 18.4)));
       const title = !!label.title;
       label.el.style.fontSize = ((title ? 10 : 8) * scale).toFixed(2) + 'px';
       label.el.style.padding = ((title ? 2.5 : 1) * scale).toFixed(2) + 'px ' + ((title ? 6 : 4) * scale).toFixed(2) + 'px';
-      label.el.style.visibility = 'visible';
+      label.el.style.visibility = 'hidden';
       label.el.style.transform = 'translate(' + px.toFixed(1) + 'px,' + py.toFixed(1) + 'px) translate(-50%, -50%)';
+      ready.push({ label: label, px: px, py: py });
+    });
+    ready.sort((a, b) => {
+      const pa = a.label.selected ? 0 : a.label.priority;
+      const pb = b.label.selected ? 0 : b.label.priority;
+      if (pa !== pb) return pa - pb;
+      return a.px - b.px;
+    });
+    const drawn = [];
+    ready.forEach((item) => {
+      const width = item.label.el.offsetWidth;
+      const height = item.label.el.offsetHeight;
+      const box = { x: item.px - width / 2, y: item.py - height / 2, w: width, h: height };
+      if (!item.label.selected && !item.label.car && width > 0 && drawn.some((other) => labelsOverlap(box, other))) return;
+      drawn.push(box);
+      item.label.el.style.visibility = 'visible';
     });
   }
 
@@ -393,11 +417,11 @@ export function createScene3D(map, options) {
     labelHost.textContent = '';
     labels = list.map((item) => {
       const el = document.createElement('div');
-      el.className = 'room-label' + (item.title ? ' building-title' : '') + (item.selected ? ' is-selected' : '');
+      el.className = 'room-label' + (item.title ? ' building-title' : '') + (item.car ? ' is-car' : '') + (item.selected ? ' is-selected' : '');
       el.textContent = item.text;
       el.style.visibility = 'hidden';
       labelHost.appendChild(el);
-      return { el, lngLat: item.lngLat, height: item.height || 0, title: !!item.title };
+      return { el, lngLat: item.lngLat, height: item.height || 0, title: !!item.title, selected: !!item.selected, car: !!item.car, priority: item.priority == null ? 1 : item.priority };
     });
     map.triggerRepaint();
   }
@@ -489,7 +513,7 @@ export function createScene3D(map, options) {
       if (d.kind === 'plate') {
         const above = solid && d.rank > shellRank;
         const below = solid && d.rank < shellRank;
-        m.visible = solid ? !above : d.rank === shellRank;
+        m.visible = solid && !above;
         m.material.color.set(d.color == null ? 0xFFFFFF : d.color);
         m.material.opacity = below ? 0.78 : 1;
         m.material.transparent = below;
@@ -1144,6 +1168,7 @@ export function createScene3D(map, options) {
         const tex = surfaceTexture(part);
         if (tex) paintUVs(geo, tex.tile);
         const mesh = new THREE.Mesh(geo, basic(part.color));
+        mesh.frustumCulled = false;
         mesh.userData = {
           ownMaterial: true,
           level: part.level,
@@ -1220,8 +1245,9 @@ export function createScene3D(map, options) {
     const pts = trailPoints(leg);
     leg.casing.geometry.dispose();
     leg.core.geometry.dispose();
-    leg.casing.geometry = ribbon(pts, trailWidth + Math.max(0.2, trailWidth * 0.5), leg.elev + TRAIL_Z);
-    leg.core.geometry = ribbon(pts, trailWidth, leg.elev + TRAIL_Z + 0.004);
+    const routeWidth = trailWidth * 0.72;
+    leg.casing.geometry = ribbon(pts, routeWidth + Math.max(0.14, routeWidth * 0.45), leg.elev + TRAIL_Z);
+    leg.core.geometry = ribbon(pts, routeWidth, leg.elev + TRAIL_Z + 0.004);
     if (leg.arrows) {
       leg.arrows.forEach((arrow) => {
         arrow.userData.limit = leg.shown;
@@ -1402,11 +1428,8 @@ export function createScene3D(map, options) {
       const rad = heading * Math.PI / 180;
       marker.rotation.z = Math.atan2(Math.cos(rad), Math.sin(rad));
     }
-    const elevChanged = Math.abs(z - userElev) > 0.001;
     userElev = z;
-    extendUserTrail(xy);
-    if (elevChanged) paintUserTrail();
-    if (userTrailLive()) wake(2000);
+    clearUserTrail();
     marker.visible = true;
     map.triggerRepaint();
   }
@@ -1431,15 +1454,16 @@ export function createScene3D(map, options) {
     let dist = Math.min(3.2, leg.length * 0.45);
     while (dist < leg.length - 0.7) {
       const p = legPoint(leg, dist);
-      const arrow = new THREE.Mesh(ARROW, MAT.white);
+      const arrow = new THREE.Mesh(ARROW, basic(0xFFFFFF, { depthWrite: false, depthTest: false }));
       arrow.position.set(p.x, p.y, leg.elev + TRAIL_Z + 0.03);
       arrow.rotation.z = p.heading;
       arrow.userData.level = leg.level;
       arrow.userData.kind = 'arrow';
       arrow.userData.dist = dist;
       arrow.userData.limit = 0;
+      arrow.userData.ownMaterial = true;
       arrow.visible = false;
-      arrow.renderOrder = 4;
+      arrow.renderOrder = 8;
       routeGroup.add(arrow);
       if (!leg.arrows) leg.arrows = [];
       leg.arrows.push(arrow);
@@ -1460,8 +1484,8 @@ export function createScene3D(map, options) {
         leg.shown = 0;
         leg.casing = new THREE.Mesh(new THREE.BufferGeometry(), MAT.casing);
         leg.core = new THREE.Mesh(new THREE.BufferGeometry(), MAT.route);
-        leg.casing.renderOrder = 2;
-        leg.core.renderOrder = 3;
+        leg.casing.renderOrder = 6;
+        leg.core.renderOrder = 7;
         leg.casing.userData.level = leg.level;
         leg.core.userData.level = leg.level;
         routeGroup.add(leg.casing, leg.core);

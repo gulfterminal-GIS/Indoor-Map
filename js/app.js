@@ -5,18 +5,20 @@ const BASE = 1.4;
 const SLAB = 0.25;
 const UNIT_TOP = 0.06;
 const WALL_HEIGHT = 2.6;
-const PLAN_SCALE = 50 / 220;
+const PLAN_SCALE = 60 / 220;
 const WALL_THICK = 0.28 * PLAN_SCALE;
 const DOOR_WIDTH = 1.6 * PLAN_SCALE;
-const BORDER_WIDTH = 0.55 * PLAN_SCALE;
+const BORDER_WIDTH = 0.22 * PLAN_SCALE;
 const PITCH_3D = 55;
 const BEARING_3D = -18;
 const DRAW_MS = 8000;
+const ROUTE_ZOOM = 20.4;
 const FLOOR_GROUND = [0xF4D7A8, 0xB9D4F5, 0xC6E7C8, 0xF3C6D6];
 
 const CATEGORIES = [
   { id: 'hall', label: 'Halls', fill: '#E8F1F8', line: '#1565A8' },
   { id: 'room', label: 'Rooms', fill: '#F4F7FA', line: '#2F4A6D' },
+  { id: 'parking', label: 'Parking', fill: '#ECEAE4', line: '#6B5E4E' },
   { id: 'corridor', label: 'Corridors', fill: '#E7EDF4', line: '#5C6B82' },
   { id: 'restroom', label: 'Restrooms', fill: '#E7F2EA', line: '#15803D' },
   { id: 'elevator', label: 'Elevators', fill: '#E4EAF3', line: '#1B2A4A' },
@@ -26,17 +28,26 @@ const CATEGORIES = [
   { id: 'network', label: 'Full network', fill: '#5C6B82', line: '#5C6B82', lineOnly: true, note: 'Every walk link' }
 ];
 
-const DOCK_TITLES = { floors: 'Floors', layers: 'Layers', directions: 'Directions' };
+const DOCK_TITLES = { explore: 'Explore', floors: 'Floors', layers: 'Layers', directions: 'Directions' };
 
 const state = {
   levelId: null,
   layers: {
-    hall: true, room: true, corridor: true, restroom: true,
+    hall: true, room: true, parking: true, corridor: true, restroom: true,
     elevator: true, escalator: true, stair: true, pathway: false, network: false, labels: true
   },
   is3d: false,
   dockOpen: false,
-  dock: 'floors',
+  dock: 'explore',
+  exploreKind: 'all',
+  exploreScope: 'here',
+  welcomed: false,
+  hereOwned: false,
+  hereHidden: false,
+  hereResume: false,
+  hereFloor: null,
+  destAsked: false,
+  locateNoted: false,
   selectedId: null,
   hoverId: null,
   endpoints: { from: null, to: null },
@@ -82,9 +93,113 @@ function categoryMeta(id) {
   return CATEGORIES.find((c) => c.id === id) || { label: id || 'Place', fill: '#F4F7FA', line: '#2F4A6D' };
 }
 
+function roomLike(category) {
+  return category === 'room' || category === 'parking';
+}
+
 function featureById(id) {
   if (!collection || id == null) return null;
   return collection.features.find((f) => String(f.id) === String(id)) || null;
+}
+
+const CAR_KEY = 'indoor-my-car';
+
+function readCarId() {
+  try {
+    const raw = localStorage.getItem(CAR_KEY);
+    if (!raw) return '';
+    const data = JSON.parse(raw);
+    return data && data.id != null ? String(data.id) : '';
+  } catch (err) {
+    return '';
+  }
+}
+
+function savedCar() {
+  const id = readCarId();
+  if (!id || !collection) return null;
+  const feature = featureById(id);
+  if (!feature || feature.properties.feature_type !== 'unit') return null;
+  if (placeInfo(feature.properties).kind !== 'park') return null;
+  return feature;
+}
+
+function carFeatureId() {
+  const feature = savedCar();
+  return feature ? String(feature.id) : '';
+}
+
+function writeCar(feature) {
+  try {
+    if (!feature) localStorage.removeItem(CAR_KEY);
+    else localStorage.setItem(CAR_KEY, JSON.stringify({ id: String(feature.id) }));
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+function syncMyCar() {
+  const box = document.getElementById('my-car');
+  if (!box) return;
+  const feature = savedCar();
+  if (!feature) {
+    box.hidden = true;
+    return;
+  }
+  const p = feature.properties;
+  box.hidden = false;
+  document.getElementById('my-car-title').textContent = 'Your car is in ' + (p.name || 'this bay');
+  document.getElementById('my-car-where').textContent = [p.building, p.level_name || floorName(p.level_id)].filter(Boolean).join(' · ');
+}
+
+function rememberCar(feature) {
+  if (!feature || placeInfo(feature.properties).kind !== 'park') return;
+  if (!writeCar(feature)) {
+    IndoorUI.toast('This browser could not save the car.');
+    return;
+  }
+  syncMyCar();
+  renderExplore();
+  refreshLabels();
+  openDetail(feature);
+  IndoorUI.toast('Your car is in ' + (feature.properties.name || 'this bay') + '.');
+}
+
+function forgetCar() {
+  const feature = savedCar();
+  if (!writeCar(null)) {
+    IndoorUI.toast('This browser could not forget the car.');
+    return;
+  }
+  syncMyCar();
+  renderExplore();
+  refreshLabels();
+  if (feature && String(state.selectedId) === String(feature.id) && document.getElementById('detail-panel').classList.contains('open')) {
+    openDetail(feature);
+  }
+  IndoorUI.toast('Your car is no longer saved.');
+}
+
+function routeToCar() {
+  const feature = savedCar();
+  if (!feature) {
+    syncMyCar();
+    return;
+  }
+  if (state.tool) setTool(state.tool);
+  openDock('directions', true);
+  const ep = endpointFromFeature(feature);
+  setEndpoint('to', ep);
+  if (state.endpoints.from) return;
+  if (deviceFix && !state.hereOwned) {
+    useDeviceLocation();
+    return;
+  }
+  focusEndpoint(ep);
+  const input = document.getElementById('from-search');
+  if (input) input.focus();
+  IndoorUI.toast('Choose a start. The way to your car will appear.');
 }
 
 function showLoaderError(message) {
@@ -97,14 +212,22 @@ function showLoaderError(message) {
 }
 
 function cameraPadding() {
-  const dock = document.getElementById('dock').classList.contains('open');
-  const detail = document.getElementById('detail-panel').classList.contains('open');
+  const dockEl = document.getElementById('dock');
+  const detailEl = document.getElementById('detail-panel');
+  const dock = dockEl.classList.contains('open');
+  const detail = detailEl.classList.contains('open');
   const narrow = window.innerWidth <= 900;
+  const phone = window.innerWidth <= 640;
+  let bottom = phone ? 108 : (narrow ? 150 : 170);
+  if (narrow && (dock || detail)) {
+    const sheet = Math.max(dock ? dockEl.offsetHeight : 0, detail ? detailEl.offsetHeight : 0);
+    bottom = sheet + (phone ? 96 : 120);
+  }
   return {
-    top: 76,
-    bottom: 170,
-    left: dock && !narrow ? 400 : 48,
-    right: detail && !narrow ? 360 : 48
+    top: phone ? 88 : 76,
+    bottom: bottom,
+    left: dock && !narrow ? 400 : (phone ? 28 : 48),
+    right: detail && !narrow ? 360 : (phone ? 28 : 48)
   };
 }
 
@@ -118,8 +241,9 @@ function floorRank(levelId) {
   return index < 0 ? 0 : index;
 }
 
-function floorGround(rank) {
-  const index = Math.max(0, rank || 0);
+function floorGround(ordinal) {
+  if (ordinal < 0) return 0xC5CCD4;
+  const index = Math.max(0, ordinal || 0);
   return FLOOR_GROUND[Math.min(index, FLOOR_GROUND.length - 1)];
 }
 
@@ -136,7 +260,7 @@ function floorBase(rank) {
 }
 
 function levelElev(levelId) {
-  return floorBase(floorRank(levelId)) + SLAB + UNIT_TOP;
+  return floorBase(floorOrdinal(levelId)) + SLAB + UNIT_TOP;
 }
 
 function targetPitch() {
@@ -343,7 +467,7 @@ function buildWalls() {
       return;
     }
     if (p.feature_type !== 'unit') return;
-    const bucket = p.category === 'corridor' || p.category === 'hall' ? circulation : p.category === 'room' ? rooms : null;
+    const bucket = p.category === 'corridor' || p.category === 'hall' ? circulation : roomLike(p.category) ? rooms : null;
     if (!bucket) return;
     if (!bucket.has(p.level_id)) bucket.set(p.level_id, []);
     const list = bucket.get(p.level_id);
@@ -390,7 +514,7 @@ function buildWalls() {
     const p = f.properties;
     if (p.feature_type !== 'unit') return;
     const paths = segments.get(p.level_id) || [];
-    const fronts = p.category === 'room' ? circulation.get(p.level_id) : (p.category === 'corridor' || p.category === 'hall') ? rooms.get(p.level_id) : null;
+    const fronts = roomLike(p.category) ? circulation.get(p.level_id) : (p.category === 'corridor' || p.category === 'hall') ? rooms.get(p.level_id) : null;
     polygonRings(f).forEach((ring) => {
       const pts = ring.map((c) => spatial.toMeters(c[0], c[1]));
       for (let i = 1; i < pts.length; i++) {
@@ -408,7 +532,7 @@ function buildWalls() {
         let solid = [[0, edge.len]];
         let glass = [];
         let doors = [];
-        if (p.category === 'room') {
+        if (roomLike(p.category)) {
           glass = cutSpans(front, gaps);
           solid = cutSpans(cutSpans([[0, edge.len]], front), gaps);
           front.forEach((span) => {
@@ -434,7 +558,7 @@ function buildWalls() {
 
 function applyFilters() {
   if (!layersReady || !state.levelId) return;
-  scene3d.setActiveLevel(state.levelId, floorRank(state.levelId), state.layers);
+  scene3d.setActiveLevel(state.levelId, floorOrdinal(state.levelId), state.layers);
   scene3d.setPathwaysVisible(state.layers.pathway);
   scene3d.setNetworkVisible(state.layers.network);
   scene3d.setUnitTone(state.selectedId, state.hoverId);
@@ -665,18 +789,26 @@ function loadCollection(fc, fit) {
     return;
   }
   collection.features.forEach((f) => {
-    if (f.properties.level_id) f.properties.rank = floorRank(f.properties.level_id);
+    if (f.properties.level_id) f.properties.rank = floorOrdinal(f.properties.level_id);
   });
   spatial = IndoorRoute.spatial(collection);
   graph = IndoorRoute.buildGraph(spatial, collection);
   walls = buildWalls();
   scene3d.setOrigin([spatial.origin.lon, spatial.origin.lat], state.ground);
-  if (!floors.some((f) => f.id === state.levelId)) state.levelId = floors[0].id;
+  if (!floors.some((f) => f.id === state.levelId)) {
+    const ground = floors.reduce((best, floor) => (Math.abs(floor.ordinal) < Math.abs(best.ordinal) ? floor : best));
+    state.levelId = ground.id;
+  }
 
   state.selectedId = null;
   state.hoverId = null;
   state.endpoints.from = null;
   state.endpoints.to = null;
+  state.hereOwned = false;
+  state.hereHidden = false;
+  state.hereResume = false;
+  state.hereFloor = null;
+  state.destAsked = false;
   closeDetail();
   ensureLayers();
   scene3d.setShell(shellParts());
@@ -686,6 +818,8 @@ function loadCollection(fc, fit) {
   scene3d.setNetwork(networkLines());
   applyFilters();
   syncFloorUi();
+  renderExplore();
+  syncMyCar();
   renderLayerChoices();
   renderLegend();
   syncEndpointUi('from');
@@ -694,6 +828,8 @@ function loadCollection(fc, fit) {
   updateStatus();
   map.setMaxBounds(null);
   if (!graph.nodes.size) IndoorUI.toast('This plan has no pathways, so directions are unavailable.');
+  state.welcomed = true;
+  beginLocate();
   if (fit) fitFloor(true);
 }
 
@@ -835,7 +971,7 @@ function syncFloorUi() {
     btn.className = 'bookmark-pill' + (floor.id === state.levelId ? ' active' : '');
     const swatch = document.createElement('span');
     swatch.className = 'floor-swatch';
-    swatch.style.background = '#' + floorGround(floorRank(floor.id)).toString(16).padStart(6, '0');
+    swatch.style.background = '#' + floorGround(floor.ordinal).toString(16).padStart(6, '0');
     btn.appendChild(swatch);
     btn.appendChild(document.createTextNode(floor.name));
     btn.setAttribute('aria-pressed', floor.id === state.levelId ? 'true' : 'false');
@@ -849,11 +985,12 @@ function syncFloorUi() {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'choice-btn' + (floor.id === state.levelId ? ' active' : '');
-    const ground = '#' + floorGround(floorRank(floor.id)).toString(16).padStart(6, '0');
+    const ground = '#' + floorGround(floor.ordinal).toString(16).padStart(6, '0');
     btn.innerHTML = '<span class="floor-swatch" style="background:' + ground + ';margin-top:4px"></span><span class="choice-copy"><strong>' + esc(floor.name) + '</strong><span>' + unitsOn(floor.id).length + ' places</span></span>';
     btn.addEventListener('click', () => setFloor(floor.id, true));
     list.appendChild(btn);
   });
+  renderExplore();
   syncGlass();
 }
 
@@ -974,7 +1111,7 @@ function refreshLabels() {
   if (!scene3d || !collection) return;
   const list = [];
   const seen = new Set();
-  const titleHeight = floorBase(floorRank(state.levelId)) + WALL_HEIGHT + 1.2;
+  const titleHeight = floorBase(floorOrdinal(state.levelId)) + WALL_HEIGHT + 1.2;
   collection.features.forEach((f) => {
     const p = f.properties;
     if (p.feature_type !== 'level' || p.level_id !== state.levelId || !p.building || seen.has(p.building)) return;
@@ -983,19 +1120,30 @@ function refreshLabels() {
       text: p.building,
       lngLat: IndoorRoute.describe(spatial, f).centroidLonLat,
       height: titleHeight,
-      title: true
+      title: true,
+      priority: 0
     });
   });
   if (state.layers.labels) {
     const zoom = map.getZoom();
     const height = levelElev(state.levelId) + 0.35;
+    const carId = carFeatureId();
     collection.features.forEach((f) => {
       const p = f.properties;
       if (p.feature_type !== 'unit' || p.level_id !== state.levelId) return;
       if (!state.layers[p.category] || p.category === 'corridor') return;
       const selected = String(f.id) === String(state.selectedId);
-      if (zoom < 17.6 && !selected) return;
-      list.push({ text: p.name, lngLat: IndoorRoute.describe(spatial, f).centroidLonLat, height: height, selected: selected });
+      const car = carId !== '' && carId === String(f.id);
+      if (zoom < 17.6 && !selected && !car) return;
+      const circulation = p.category === 'escalator' || p.category === 'elevator' || p.category === 'stair';
+      list.push({
+        text: car ? p.name + ' · Car' : p.name,
+        lngLat: IndoorRoute.describe(spatial, f).centroidLonLat,
+        height: height,
+        selected: selected,
+        car: car,
+        priority: selected || car ? 0 : circulation ? 2 : 1
+      });
     });
   }
   scene3d.setLabels(list);
@@ -1013,24 +1161,111 @@ function servedText(group) {
     .join(', ');
 }
 
+function placeInfo(properties) {
+  return window.IndoorPlaces ? IndoorPlaces.info(properties) : { kind: 'room', kindLabel: 'Place', about: '', offers: [], crowd: 'steady', crowdLabel: 'Usually steady', crowdLevel: 2 };
+}
+
+function renderExplore() {
+  const host = document.getElementById('explore-list');
+  const kinds = document.getElementById('explore-kinds');
+  if (!host || !kinds) return;
+  if (!kinds.childElementCount && window.IndoorPlaces) {
+    IndoorPlaces.KINDS.forEach((kind) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'kind-chip';
+      btn.dataset.kind = kind.id;
+      btn.textContent = kind.label;
+      kinds.appendChild(btn);
+    });
+  }
+  kinds.querySelectorAll('.kind-chip').forEach((btn) => {
+    const on = btn.dataset.kind === state.exploreKind;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  document.querySelectorAll('[data-scope]').forEach((btn) => {
+    const on = btn.dataset.scope === state.exploreScope;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  if (!collection) {
+    host.innerHTML = '';
+    return;
+  }
+  const q = (document.getElementById('explore-search').value || '').trim().toLowerCase();
+  const hits = collection.features.filter((f) => {
+    const p = f.properties || {};
+    if (p.feature_type !== 'unit' || p.category === 'corridor') return false;
+    const info = placeInfo(p);
+    if (state.exploreKind === 'all' ? info.kind === 'move' : info.kind !== state.exploreKind) return false;
+    if (state.exploreScope === 'here' && p.level_id !== state.levelId) return false;
+    if (!q) return true;
+    const blob = (p.name + ' ' + info.about + ' ' + info.offers.join(' ') + ' ' + info.kindLabel + ' ' + (p.level_name || '') + ' ' + (p.building || '')).toLowerCase();
+    return blob.includes(q);
+  });
+  hits.sort((a, b) => {
+    const ap = a.properties;
+    const bp = b.properties;
+    const af = ap.level_id === state.levelId ? 0 : 1;
+    const bf = bp.level_id === state.levelId ? 0 : 1;
+    if (af !== bf) return af - bf;
+    const rank = floorRank(ap.level_id) - floorRank(bp.level_id);
+    if (rank) return rank;
+    return String(ap.name).localeCompare(String(bp.name));
+  });
+  if (!hits.length) {
+    host.innerHTML = '<p class="muted">' + (q ? 'Nothing matches that.' : 'Nothing of this type on this floor.') + '</p>';
+    return;
+  }
+  const carId = carFeatureId();
+  host.innerHTML = hits.map((f) => {
+    const p = f.properties;
+    const info = placeInfo(p);
+    const line = info.offers.length ? info.offers.join(', ') : (info.about || info.kindLabel);
+    const where = state.exploreScope === 'all' || p.level_id !== state.levelId ? (p.level_name || floorName(p.level_id)) : info.kindLabel;
+    const mine = carId !== '' && carId === String(f.id);
+    return '<button type="button" class="explore-card" data-place="' + esc(f.id) + '">'
+      + '<span class="explore-main"><strong>' + esc(p.name) + '</strong><span>' + esc(line) + '</span></span>'
+      + '<span class="explore-side">' + (mine ? '<span class="explore-car">My car</span>' : '')
+      + '<span class="crowd crowd-' + info.crowd + '">' + esc(info.crowdLabel.replace('Usually ', '')) + '</span><span class="explore-where">' + esc(where) + '</span></span>'
+      + '</button>';
+  }).join('');
+}
+
 function openDetail(feature) {
   const p = feature.properties;
-  const meta = categoryMeta(p.category);
+  const info = placeInfo(p);
   const described = IndoorRoute.describe(spatial, feature);
-  document.getElementById('detail-type').textContent = meta.label + ' · ' + (p.level_name || floorName(p.level_id));
+  document.getElementById('detail-type').textContent = info.kindLabel + ' · ' + (p.level_name || floorName(p.level_id));
   document.getElementById('detail-title').textContent = p.name || 'Place';
-  const area = described.area > 1 ? Math.round(described.area) + ' m²' : '—';
+  const area = described.area > 1 ? Math.round(described.area) + ' m²' : '';
   const serves = servedText(p.transition_group);
-  let html = '<div class="stat-grid">'
+  let html = '';
+  if (info.about && !serves) html += '<p class="detail-about">' + esc(info.about) + '</p>';
+  if (info.offers.length) {
+    html += '<div class="offer-row">' + info.offers.map((item) => '<span class="offer">' + esc(item) + '</span>').join('') + '</div>';
+  }
+  html += '<div class="crowd-block crowd-' + info.crowd + '"><span class="crowd-dots" aria-hidden="true">'
+    + [1, 2, 3].map((n) => '<i' + (n <= info.crowdLevel ? ' class="on"' : '') + '></i>').join('')
+    + '</span><span><strong>' + esc(info.crowdLabel) + '</strong><span>A typical time here, not a live count.</span></span></div>';
+  html += '<div class="stat-grid">'
     + '<div class="stat"><div class="k">Floor</div><div class="v">' + esc(p.level_name || floorName(p.level_id)) + '</div></div>'
-    + '<div class="stat"><div class="k">Area</div><div class="v">' + esc(area) + '</div></div>'
+    + (area ? '<div class="stat"><div class="k">Area</div><div class="v">' + esc(area) + '</div></div>' : '')
     + '</div>';
-  if (serves) html += '<div class="dealer-block"><p>Serves ' + esc(serves) + '.</p></div>';
-  else if (p.summary) html += '<div class="dealer-block"><p>' + esc(p.summary) + '</p></div>';
+  if (serves) html += '<div class="dealer-block"><p>Connects ' + esc(serves) + '.</p></div>';
+  const parking = info.kind === 'park';
+  const mine = parking && carFeatureId() === String(feature.id);
+  if (mine) html += '<p class="my-car-note">Your car is in this bay.</p>';
   html += '<div class="detail-actions">'
-    + '<button class="btn" type="button" id="detail-from">Directions from here</button>'
-    + '<button class="btn" type="button" id="detail-to">Directions to here</button>';
-  if (hasPano(feature)) html += '<button class="btn btn-primary" type="button" id="detail-pano">View 360</button>';
+    + '<button class="btn btn-primary" type="button" id="detail-to">Directions here</button>';
+  if (parking) {
+    html += mine
+      ? '<button class="btn" type="button" id="detail-forget-car">Forget my car</button>'
+      : '<button class="btn" type="button" id="detail-remember-car">This is my car</button>';
+  }
+  html += '<button class="btn" type="button" id="detail-from">Start from here</button>';
+  if (hasPano(feature)) html += '<button class="btn" type="button" id="detail-pano">Look around in 360</button>';
   html += '</div>';
   document.getElementById('detail-body').innerHTML = html;
   document.getElementById('detail-panel').classList.add('open');
@@ -1041,7 +1276,12 @@ function openDetail(feature) {
   document.getElementById('detail-to').addEventListener('click', () => {
     openDock('directions', true);
     setEndpoint('to', endpointFromFeature(feature));
+    if (!state.endpoints.from) document.getElementById('from-search').focus();
   });
+  const rememberBtn = document.getElementById('detail-remember-car');
+  if (rememberBtn) rememberBtn.addEventListener('click', () => rememberCar(feature));
+  const forgetDetailBtn = document.getElementById('detail-forget-car');
+  if (forgetDetailBtn) forgetDetailBtn.addEventListener('click', forgetCar);
   const panoBtn = document.getElementById('detail-pano');
   if (panoBtn) panoBtn.addEventListener('click', () => openPano(feature));
   syncGlass();
@@ -1150,7 +1390,8 @@ function floorAliases() {
     ['L0', 'ground floor'],
     ['L1', 'first floor'], ['L1', '1st floor'],
     ['L2', 'second floor'], ['L2', '2nd floor'],
-    ['L3', 'third floor'], ['L3', '3rd floor']
+    ['L3', 'third floor'], ['L3', '3rd floor'],
+    ['LG', 'basement'], ['LG', 'parking']
   ].forEach((pair) => list.push({ id: pair[0], key: pair[1] }));
   return list.filter((item) => item.key).sort((a, b) => b.key.length - a.key.length);
 }
@@ -1173,7 +1414,8 @@ function queryParts(query) {
 }
 
 function placeBlob(p) {
-  return (p.name + ' ' + (p.building || '') + ' ' + (p.level_name || '') + ' ' + (p.level_id || '')).toLowerCase();
+  const info = placeInfo(p);
+  return (p.name + ' ' + info.about + ' ' + info.offers.join(' ') + ' ' + info.kindLabel + ' ' + (p.building || '') + ' ' + (p.level_name || '') + ' ' + (p.level_id || '')).toLowerCase();
 }
 
 function capPlaces(list, floorId) {
@@ -1251,6 +1493,17 @@ function renderPlaceResults(which) {
   const hits = routePlaces(input.value, floorId);
   host.innerHTML = '';
   host.hidden = false;
+  if (which === 'from') {
+    const here = document.createElement('button');
+    here.type = 'button';
+    here.className = 'place-hit place-here';
+    here.innerHTML = '<strong>Your location</strong><span>From your phone</span>';
+    here.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      useDeviceLocation();
+    });
+    host.appendChild(here);
+  }
   const chips = document.createElement('div');
   chips.className = 'place-floors';
   const choices = [{ id: '', name: 'All' }].concat(floors.map((floor) => ({ id: floor.id, name: floor.name })));
@@ -1287,7 +1540,9 @@ function renderPlaceResults(which) {
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'place-hit';
-    row.innerHTML = '<strong>' + esc(f.properties.name) + '</strong>';
+    const info = placeInfo(f.properties);
+    const line = info.offers.length ? info.offers.slice(0, 3).join(', ') : info.kindLabel;
+    row.innerHTML = '<strong>' + esc(f.properties.name) + '</strong><span>' + esc(line) + '</span>';
     row.addEventListener('mousedown', (event) => {
       event.preventDefault();
       const ep = endpointFromFeature(f);
@@ -1336,14 +1591,22 @@ function syncEndpointUi(which) {
   const input = document.getElementById(which === 'from' ? 'from-search' : 'to-search');
   const note = document.getElementById(which === 'from' ? 'from-note' : 'to-note');
   input.value = ep ? ep.name : '';
-  note.textContent = ep ? [ep.building, ep.level_name].filter(Boolean).join(' · ') : '';
+  if (ep && ep.source === 'gps') note.textContent = (ep.level_name || 'This floor') + ' · from your phone';
+  else note.textContent = ep ? [ep.building, ep.level_name].filter(Boolean).join(' · ') : '';
+  if (which === 'from') {
+    const clear = document.getElementById('btn-clear-here');
+    if (clear) clear.hidden = !(ep && ep.source === 'gps');
+  }
 }
 
 function setEndpoint(which, ep, opts) {
+  if (which === 'from' && !(opts && opts.fromGps)) state.hereOwned = !!(opts && opts.keepClear) || ep != null;
   state.endpoints[which] = ep;
   syncEndpointUi(which);
   updateStatus();
+  syncPickGuide();
   if (!opts || !opts.skipRoute) maybeRoute();
+  if (which === 'from' && !ep && deviceFix && !state.hereOwned) applyGpsStart();
 }
 
 function focusEndpoint(ep) {
@@ -1358,6 +1621,56 @@ function focusEndpoint(ep) {
   if (ep.focus) flyTo(ep.focus, null, ep.level_id);
 }
 
+function wantedPickTool() {
+  const from = !!state.endpoints.from;
+  const to = !!state.endpoints.to;
+  if (from && !to) return 'to';
+  if (!from && to) return 'from';
+  return 'draw';
+}
+
+function syncPickGuide() {
+  const guide = document.getElementById('pick-guide');
+  const btn = document.getElementById('btn-pick');
+  if (!guide || !btn) return;
+  const from = !!state.endpoints.from;
+  const to = !!state.endpoints.to;
+  const tool = state.tool;
+  let text = '';
+  let label = 'Pick on the map';
+  if (tool === 'draw' && state.drawPhase) {
+    text = 'Now tap the destination on the map.';
+    label = 'Picking the destination';
+  } else if (tool === 'draw') {
+    text = (from || to)
+      ? 'Tap a new start on the map, then the destination.'
+      : 'Tap the start on the map, then the destination.';
+    label = 'Pick start and destination';
+  } else if (tool === 'from') {
+    text = 'Tap the start on the map.';
+    label = 'Pick the start';
+  } else if (tool === 'to') {
+    text = 'Tap the destination on the map.';
+    label = 'Pick the destination';
+  } else if (!from && !to) {
+    text = 'Map pin: tap a start, then a destination.';
+    label = 'Pick start and destination on the map';
+  } else if (!to) {
+    text = 'Start is set. Map pin: tap the destination.';
+    label = 'Pick the destination on the map';
+  } else if (!from) {
+    text = 'Destination is set. Map pin: tap the start.';
+    label = 'Pick the start on the map';
+  }
+  guide.textContent = text;
+  guide.hidden = !text;
+  btn.setAttribute('aria-label', label);
+  btn.title = label;
+  const on = tool === 'from' || tool === 'to' || tool === 'draw';
+  btn.classList.toggle('active', on);
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+
 function setTool(tool) {
   const next = state.tool === tool ? null : tool;
   state.tool = next;
@@ -1368,9 +1681,10 @@ function setTool(tool) {
     btn.classList.toggle('active', on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
-  if (next === 'from') IndoorUI.toast('Click the start.');
-  else if (next === 'to') IndoorUI.toast('Click the destination.');
-  else if (next === 'draw') IndoorUI.toast('Click the start, then the destination.');
+  syncPickGuide();
+  if (next === 'from') IndoorUI.toast('Tap the start on the map.');
+  else if (next === 'to') IndoorUI.toast('Tap the destination on the map.');
+  else if (next === 'draw') IndoorUI.toast('Tap the start, then the destination.');
 }
 
 function routeRef(ep) {
@@ -1401,51 +1715,151 @@ function clearRoute() {
   state.route = null;
   state.step = 0;
   hideRideCaption();
-  stopDeviceTrack();
   if (scene3d) scene3d.clearRoute();
   if (map) map.stop();
   renderSteps();
   updateStatus();
+  paintUser();
 }
 
 let deviceWatch = null;
 let deviceFix = null;
-let deviceNoted = false;
+
+const HERE_M = 80;
+
+function gpsHit(lngLat) {
+  if (!spatial || !graph || !lngLat) return null;
+  const meters = spatial.toMeters(lngLat[0], lngLat[1]);
+  const hits = [];
+  floors.forEach((floor) => {
+    const near = IndoorRoute.nearest(graph, floor.id, meters[0], meters[1]);
+    if (near && near.node) hits.push({ floor: floor, d: near.d, node: near.node });
+  });
+  if (!hits.length) return null;
+  hits.sort((a, b) => a.d - b.d);
+  if (hits[0].d > HERE_M) return null;
+  const close = hits.filter((hit) => hit.d <= hits[0].d + 3);
+  if (state.hereFloor) {
+    const stay = close.find((hit) => hit.floor.id === state.hereFloor);
+    if (stay) return stay;
+  }
+  close.sort((a, b) => Math.abs(a.floor.ordinal) - Math.abs(b.floor.ordinal) || a.d - b.d);
+  return close[0];
+}
+
+function paintUser() {
+  if (!scene3d) return;
+  const hit = deviceFix ? gpsHit(deviceFix.lngLat) : null;
+  if (!deviceFix || !hit || state.hereHidden) {
+    scene3d.setUser(null);
+    return;
+  }
+  scene3d.setUser(deviceFix.lngLat, levelElev(hit.floor.id), deviceFix.heading);
+}
 
 function placeDevice() {
-  if (!deviceFix || !state.route || !scene3d) return;
-  scene3d.setUser(deviceFix.lngLat, levelElev(state.levelId), deviceFix.heading);
+  paintUser();
+}
+
+function applyGpsStart() {
+  const resume = state.hereResume;
+  state.hereResume = false;
+  const hit = deviceFix ? gpsHit(deviceFix.lngLat) : null;
+  if (!hit || state.hereOwned) return;
+  state.hereHidden = false;
+  const node = hit.node;
+  const prev = state.endpoints.from;
+  const moved = !prev || prev.source !== 'gps' || prev.level_id !== hit.floor.id || Math.hypot(prev.x - node.x, prev.y - node.y) > 6;
+  if (!moved) return;
+  const first = !prev || prev.source !== 'gps';
+  state.hereFloor = hit.floor.id;
+  setEndpoint('from', {
+    id: null,
+    source: 'gps',
+    name: 'Your location',
+    building: '',
+    level_id: hit.floor.id,
+    level_name: hit.floor.name,
+    x: node.x,
+    y: node.y,
+    focus: node.lonlat
+  }, { fromGps: true, skipRoute: !resume && (!state.endpoints.to || !!state.route) });
+  if (!first) return;
+  if (state.levelId !== hit.floor.id) setFloor(hit.floor.id, false);
+  if (node.lonlat) flyTo(node.lonlat, null, hit.floor.id);
+  askDestination();
+}
+
+function useDeviceLocation() {
+  hidePlaceResults();
+  state.hereHidden = false;
+  state.hereOwned = false;
+  state.hereResume = true;
+  if (deviceWatch != null && deviceFix) {
+    onLocate({ coords: { longitude: deviceFix.lngLat[0], latitude: deviceFix.lngLat[1], heading: deviceFix.heading } });
+    return;
+  }
+  state.locateNoted = false;
+  beginLocate();
+}
+
+function askDestination() {
+  if (state.destAsked) return;
+  state.destAsked = true;
+  const lead = document.getElementById('directions-lead');
+  if (lead) lead.textContent = 'You are here. Where do you want to go?';
+  openDock('directions', true);
+  IndoorUI.toast('You are here. Choose a destination.');
+}
+
+function onLocate(pos) {
+  deviceFix = {
+    lngLat: [pos.coords.longitude, pos.coords.latitude],
+    heading: pos.coords.heading
+  };
+  paintUser();
+  if (!gpsHit(deviceFix.lngLat)) {
+    if (!state.locateNoted) {
+      state.locateNoted = true;
+      IndoorUI.toast('You are away from this building. Choose a start.');
+      if (!state.dockOpen) openDock('explore', true);
+    }
+    return;
+  }
+  applyGpsStart();
+}
+
+function onLocateError(err) {
+  const denied = err && err.code === 1;
+  if (denied) stopDeviceTrack();
+  if (state.locateNoted || deviceFix) return;
+  state.locateNoted = true;
+  IndoorUI.toast(denied ? 'Location permission was denied. Choose a start.' : 'Location is unavailable. Choose a start.');
+  if (!state.dockOpen) openDock('explore', true);
+}
+
+function beginLocate() {
+  if (deviceWatch != null) {
+    if (deviceFix) onLocate({ coords: { longitude: deviceFix.lngLat[0], latitude: deviceFix.lngLat[1], heading: deviceFix.heading } });
+    return;
+  }
+  if (!navigator.geolocation || !window.isSecureContext) {
+    if (!state.locateNoted) {
+      state.locateNoted = true;
+      IndoorUI.toast(!navigator.geolocation ? 'This device has no location. Choose a start.' : 'Location needs a secure page. Choose a start.');
+      if (!state.dockOpen) openDock('explore', true);
+    }
+    return;
+  }
+  deviceWatch = navigator.geolocation.watchPosition(onLocate, onLocateError, {
+    enableHighAccuracy: true,
+    maximumAge: 5000,
+    timeout: 20000
+  });
 }
 
 function startDeviceTrack() {
-  if (deviceWatch != null) return;
-  if (!navigator.geolocation) {
-    IndoorUI.toast('This device has no location.');
-    return;
-  }
-  if (!window.isSecureContext) {
-    IndoorUI.toast('Location needs a secure page.');
-    return;
-  }
-  deviceNoted = false;
-  deviceWatch = navigator.geolocation.watchPosition((pos) => {
-    if (!state.route) {
-      stopDeviceTrack();
-      return;
-    }
-    deviceFix = {
-      lngLat: [pos.coords.longitude, pos.coords.latitude],
-      heading: pos.coords.heading
-    };
-    placeDevice();
-    if (!deviceNoted) {
-      deviceNoted = true;
-      IndoorUI.toast('Tracking this device.');
-    }
-  }, (err) => {
-    stopDeviceTrack();
-    IndoorUI.toast(err && err.code === 1 ? 'Location permission was denied.' : 'This device location is unavailable.');
-  }, { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 });
+  beginLocate();
 }
 
 function stopDeviceTrack() {
@@ -1465,7 +1879,7 @@ function rideCaptionText(step) {
 function showRideCaption(step) {
   const el = document.getElementById('ride-caption');
   document.getElementById('ride-caption-text').textContent = rideCaptionText(step);
-  document.getElementById('ride-caption-swatch').style.background = '#' + floorGround(floorRank(step.toLevel)).toString(16).padStart(6, '0');
+  document.getElementById('ride-caption-swatch').style.background = '#' + floorGround(floorOrdinal(step.toLevel)).toString(16).padStart(6, '0');
   window.clearTimeout(rideCaptionTimer);
   el.classList.add('show');
   el.setAttribute('aria-hidden', 'false');
@@ -1533,7 +1947,11 @@ let routeStarted = 0;
 
 function frameRoute(levelId, duration) {
   if (!state.route || !map) return;
-  const lines = state.route.segments.filter((s) => s.level_id === levelId).map((s) => s.coordinates);
+  const lines = state.route.segments
+    .filter((s) => s.level_id === levelId)
+    .map((s) => s.coordinates)
+    .filter((line) => line && line.length);
+  if (!lines.length) return;
   const bounds = boundsOfLines(lines);
   if (!bounds) return;
   const bearing = state.is3d ? BEARING_3D : map.getBearing();
@@ -1542,17 +1960,26 @@ function frameRoute(levelId, duration) {
   const shifted = cameraCenter(bounds[0], elev, pitch, bearing);
   const dx = shifted[0] - bounds[0][0];
   const dy = shifted[1] - bounds[0][1];
-  const camera = map.cameraForBounds(
+  const fitted = map.cameraForBounds(
     [[bounds[0][0] + dx, bounds[0][1] + dy], [bounds[1][0] + dx, bounds[1][1] + dy]],
-    { padding: cameraPadding(), maxZoom: 19.8, bearing: bearing, pitch: pitch }
+    { padding: cameraPadding(), maxZoom: 21.2, bearing: bearing, pitch: pitch }
   );
-  if (!camera) return;
+  const fitZoom = fitted && isFinite(fitted.zoom) ? fitted.zoom : ROUTE_ZOOM;
+  const zoom = Math.max(map.getZoom(), Math.min(21.2, Math.max(ROUTE_ZOOM, fitZoom)));
+  const focus = lines[0][0];
+  const stayClose = zoom > fitZoom + 0.15;
   state._lastElev = elev;
-  map.easeTo(Object.assign({}, camera, {
-    duration: duration == null ? DRAW_MS : duration,
+  const camera = {
+    center: !stayClose && fitted ? fitted.center : cameraCenter(focus, elev, pitch, bearing),
+    zoom: zoom,
+    bearing: bearing,
+    pitch: pitch,
+    duration: Math.min(duration == null ? motion(800) : duration, motion(900)),
     essential: true,
     easing: (t) => 1 - Math.pow(1 - t, 3)
-  }));
+  };
+  if (stayClose) camera.padding = cameraPadding();
+  map.easeTo(camera);
 }
 
 function startPlayback() {
@@ -1581,6 +2008,15 @@ function followCamera(info) {
   map.jumpTo({ center: [c.lng + (target[0] - c.lng) * k, c.lat + (target[1] - c.lat) * k] });
 }
 
+function syncRouteSheet() {
+  const dock = document.getElementById('dock');
+  const showing = !!state.route && state.dock === 'directions';
+  dock.classList.toggle('has-route', showing);
+  if (!showing) return;
+  const body = dock.querySelector('.dock-body');
+  if (body) body.scrollTop = 0;
+}
+
 function renderSteps() {
   const host = document.getElementById('route-steps');
   const empty = document.getElementById('route-empty');
@@ -1590,11 +2026,17 @@ function renderSteps() {
     summary.textContent = '';
     empty.hidden = false;
     document.getElementById('btn-replay').disabled = true;
+    syncRouteSheet();
     return;
   }
   empty.hidden = true;
   document.getElementById('btn-replay').disabled = false;
-  summary.textContent = Math.round(state.route.walkMeters) + ' m · ' + state.route.from.name + ' to ' + state.route.to.name;
+  const meters = Math.round(state.route.walkMeters);
+  const rides = state.route.steps.filter((step) => step.kind === 'transition');
+  const extra = rides.reduce((sum, step) => sum + (step.mode === 'stair' ? 45 : step.mode === 'elevator' ? 30 : 20), 0);
+  const minutes = Math.max(1, Math.round(meters / 1.2 / 60 + extra / 60));
+  const via = rides.length ? rides.map((step) => step.mode === 'stair' ? 'stairs' : step.mode).filter((mode, index, list) => list.indexOf(mode) === index).join(' and ') : 'the same floor';
+  summary.innerHTML = '<div class="route-card"><strong>About ' + minutes + ' min</strong><span>' + meters + ' m · ' + esc(state.route.from.name) + ' to ' + esc(state.route.to.name) + '</span><span>By ' + esc(via) + '</span></div>';
   state.route.steps.forEach((step, index) => {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -1605,6 +2047,7 @@ function renderSteps() {
     btn.addEventListener('click', () => goToStep(index));
     host.appendChild(btn);
   });
+  syncRouteSheet();
 }
 
 function stepIcon(action) {
@@ -1668,6 +2111,17 @@ function updateStatus() {
   document.getElementById('stat-route').textContent = Math.round(state.route.walkMeters) + ' m' + via;
 }
 
+function setToolsOpen(open, opts) {
+  const on = !!open;
+  document.body.classList.toggle('tools-open', on);
+  const btn = document.getElementById('btn-more');
+  if (btn) {
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+  }
+  if (!on && !(opts && opts.keepFlyouts)) IndoorUI.closeFlyouts();
+}
+
 function syncTools() {
   document.querySelectorAll('[data-dock]').forEach((btn) => {
     const on = state.dockOpen && state.dock === btn.dataset.dock;
@@ -1682,6 +2136,7 @@ function openDock(name, keepOpen) {
     closeDock();
     return;
   }
+  setToolsOpen(false);
   state.dockOpen = true;
   state.dock = name;
   dock.classList.add('open');
@@ -1881,7 +2336,7 @@ function onSearch(query) {
   if (!q || !collection) return;
   const hits = collection.features.filter((f) => {
     if (f.properties.feature_type !== 'unit') return false;
-    const blob = (f.properties.name + ' ' + f.properties.category + ' ' + (f.properties.level_name || '') + ' ' + (f.properties.building || '')).toLowerCase();
+    const blob = placeBlob(f.properties);
     return blob.includes(q);
   }).slice(0, 8);
   if (!hits.length) {
@@ -1910,6 +2365,7 @@ function setHover(id) {
 
 function bindMap() {
   map.on('click', (event) => {
+    setToolsOpen(false);
     IndoorUI.closeFlyouts();
     hidePlaceResults();
     if (!collection) return;
@@ -1937,7 +2393,8 @@ function bindMap() {
         clearRoute();
         scene3d.setDraft({ level: ep.level_id, xy: scene3d.toScene(ep.focus), elev: levelElev(ep.level_id) });
         state.drawPhase = 1;
-        IndoorUI.toast('Click the destination.');
+        syncPickGuide();
+        IndoorUI.toast('Now tap the destination.');
         focusEndpoint(ep);
         return;
       }
@@ -1980,6 +2437,21 @@ function bindChrome() {
     btn.addEventListener('click', () => openDock(btn.dataset.dock));
   });
   document.getElementById('btn-close-dock').addEventListener('click', closeDock);
+  document.getElementById('btn-more').addEventListener('click', () => {
+    const opening = !document.body.classList.contains('tools-open');
+    if (opening) closeDock();
+    setToolsOpen(opening);
+  });
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 640 && document.body.classList.contains('tools-open')) setToolsOpen(false);
+  });
+  document.getElementById('tool-sheet').addEventListener('click', (event) => {
+    const button = event.target.closest('button');
+    if (!button) return;
+    const flyout = button.closest('#btn-search, #btn-data, #btn-basemap');
+    closeDock();
+    setToolsOpen(false, { keepFlyouts: !!flyout });
+  });
   document.getElementById('btn-legend').addEventListener('click', () => {
     const legend = document.getElementById('map-legend');
     const open = !legend.classList.contains('open');
@@ -2022,6 +2494,8 @@ function bindChrome() {
     IndoorUI.applyTheme(next);
   });
   document.getElementById('btn-close-detail').addEventListener('click', closeDetail);
+  document.getElementById('btn-my-car').addEventListener('click', routeToCar);
+  document.getElementById('btn-forget-car').addEventListener('click', forgetCar);
   document.getElementById('btn-pano-back').addEventListener('click', () => {
     closePano();
     renderPanoMenu();
@@ -2029,6 +2503,25 @@ function bindChrome() {
   });
   document.getElementById('btn-pano-clear').addEventListener('click', closePano);
   document.getElementById('search-input').addEventListener('input', (event) => onSearch(event.target.value));
+  document.getElementById('explore-search').addEventListener('input', renderExplore);
+  document.getElementById('explore-kinds').addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-kind]');
+    if (!btn) return;
+    state.exploreKind = btn.dataset.kind;
+    renderExplore();
+  });
+  document.querySelectorAll('[data-scope]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.exploreScope = btn.dataset.scope;
+      renderExplore();
+    });
+  });
+  document.getElementById('explore-list').addEventListener('click', (event) => {
+    const card = event.target.closest('[data-place]');
+    if (!card || !collection) return;
+    const feature = collection.features.find((f) => String(f.id) === card.dataset.place);
+    if (feature) selectFeature(feature, true);
+  });
   bindPlaceSearch('from');
   bindPlaceSearch('to');
   document.querySelectorAll('[data-vertical]').forEach((btn) => {
@@ -2042,23 +2535,28 @@ function bindChrome() {
       if (state.endpoints.from && state.endpoints.to) calculate();
     });
   });
-  document.getElementById('btn-route').addEventListener('click', () => {
-    if (!state.endpoints.from || !state.endpoints.to) {
-      IndoorUI.toast('Choose a start and a destination.');
-      return;
-    }
-    calculate();
+  const clearHere = document.getElementById('btn-clear-here');
+  clearHere.addEventListener('mousedown', (event) => event.preventDefault());
+  clearHere.addEventListener('click', () => {
+    hidePlaceResults();
+    state.hereHidden = true;
+    setEndpoint('from', null, { keepClear: true });
+    if (scene3d) scene3d.setUser(null);
+  });
+  document.getElementById('btn-pick').addEventListener('click', () => {
+    hidePlaceResults();
+    document.getElementById('from-search').blur();
+    document.getElementById('to-search').blur();
+    setTool(wantedPickTool());
   });
   document.getElementById('btn-swap').addEventListener('click', () => {
     const from = state.endpoints.from;
     state.endpoints.from = state.endpoints.to;
     state.endpoints.to = from;
+    state.hereOwned = !(state.endpoints.from && state.endpoints.from.source === 'gps');
     syncEndpointUi('from');
     syncEndpointUi('to');
     maybeRoute();
-  });
-  document.querySelectorAll('[data-tool]').forEach((btn) => {
-    btn.addEventListener('click', () => setTool(btn.dataset.tool));
   });
   document.getElementById('btn-replay').addEventListener('click', () => {
     if (!state.route) {
@@ -2072,6 +2570,9 @@ function bindChrome() {
     setEndpoint('from', null, { skipRoute: true });
     setEndpoint('to', null, { skipRoute: true });
     clearRoute();
+  });
+  document.querySelectorAll('[data-tool]').forEach((btn) => {
+    btn.addEventListener('click', () => setTool(btn.dataset.tool));
   });
 
   document.getElementById('data-file').addEventListener('change', (event) => {
@@ -2106,6 +2607,10 @@ function bindChrome() {
       closeDetail();
       return;
     }
+    if (state.tool) {
+      setTool(null);
+      return;
+    }
     if (state.dockOpen) closeDock();
   });
 
@@ -2116,6 +2621,7 @@ function bindChrome() {
       if (menu && menu.classList.contains('open')) IndoorUI.positionFlyout(menu, btn);
     });
   });
+  syncPickGuide();
 }
 
 function rasterStyle(id, tiles, attribution, overlay) {
@@ -2273,9 +2779,10 @@ function showExtrudedBuildings() {
         'fill-extrusion-opacity': 0.92,
         'fill-extrusion-vertical-gradient': false
       }
-    });
+    }, map.getLayer('scene3d') ? 'scene3d' : undefined);
   } else if (map.getLayer('building-3d')) {
     map.setLayoutProperty('building-3d', 'visibility', 'visible');
+    if (map.getLayer('scene3d')) map.moveLayer('building-3d', 'scene3d');
   }
 }
 
@@ -2364,6 +2871,24 @@ function syncGround() {
   seatBuilding();
 }
 
+function converterPlan() {
+  if (new URLSearchParams(location.search).get('source') !== 'converter' || !window.indexedDB) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const req = indexedDB.open('indoor-converter', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('handoff');
+    req.onerror = () => resolve(null);
+    req.onsuccess = () => {
+      try {
+        const get = req.result.transaction('handoff', 'readonly').objectStore('handoff').get('latest');
+        get.onsuccess = () => resolve(get.result && get.result.features ? get.result : null);
+        get.onerror = () => resolve(null);
+      } catch (err) {
+        resolve(null);
+      }
+    };
+  });
+}
+
 function boot() {
   IndoorUI.bootTheme();
   prepareStyle(BASEMAPS[0].style).catch(() => BASEMAPS[0].style).then(startMap);
@@ -2417,10 +2942,10 @@ function startMap(style) {
   map.on('style.load', () => map.setProjection({ type: 'globe' }));
   map.on('idle', syncGround);
   const ready = new Promise((resolve) => map.on('load', () => resolve()));
-  const data = fetch('data/indoor.geojson').then((res) => {
+  const data = converterPlan().then((fc) => fc || fetch('data/indoor.geojson').then((res) => {
     if (!res.ok) throw new Error('missing');
     return res.json();
-  });
+  }));
   Promise.all([ready, data]).then((pair) => {
     loadCollection(pair[1], false);
     frameBuilding();
