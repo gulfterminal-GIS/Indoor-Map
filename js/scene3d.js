@@ -176,6 +176,7 @@ export function createScene3D(map, options) {
   let shellCats = null;
   let shellSelected = null;
   let shellHover = null;
+  let highlightIds = null;
   let escalatorLive = false;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -294,9 +295,13 @@ export function createScene3D(map, options) {
       camera.projectionMatrix.multiplyMatrices(proj, local);
       applySizes();
       renderer.resetState();
+      gl.enable(gl.DEPTH_TEST);
+      gl.depthMask(true);
+      gl.clear(gl.DEPTH_BUFFER_BIT);
       renderer.setViewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
       renderer.render(scene, camera);
       placeLabels();
+      paintRouteOverlay();
     }
   };
 
@@ -331,7 +336,7 @@ export function createScene3D(map, options) {
     const b = new THREE.Vector4(nx, ny, 1, 1).applyMatrix4(projInv);
     a.divideScalar(a.w);
     b.divideScalar(b.w);
-    const zt = origin.z + elev * unit;
+    const zt = origin.z + (elev + world.position.z) * unit;
     const dz = b.z - a.z;
     if (Math.abs(dz) < 1e-18) return null;
     const t = (zt - a.z) / dz;
@@ -368,6 +373,139 @@ export function createScene3D(map, options) {
     return a.x < b.x + b.w + gap && a.x + a.w + gap > b.x && a.y < b.y + b.h + gap && a.y + a.h + gap > b.y;
   }
 
+  let routeSvg = null;
+  let routeCasing = null;
+  let routeCore = null;
+  let routeArrows = null;
+  let routePins = null;
+
+  function projectScene(x, y, z) {
+    labelPoint.set(x, -y, z + world.position.z, 1).applyMatrix4(camera.projectionMatrix);
+    if (labelPoint.w <= 0) return null;
+    const canvas = map.getCanvas();
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    const px = (labelPoint.x / labelPoint.w + 1) * 0.5 * w;
+    const py = (1 - labelPoint.y / labelPoint.w) * 0.5 * h;
+    if (!isFinite(px) || !isFinite(py)) return null;
+    return [px, py];
+  }
+
+  function ensureRouteOverlay() {
+    if (routeSvg) return;
+    routeSvg = document.getElementById('route-overlay');
+    if (!routeSvg) return;
+    routeCasing = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    routeCore = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    [routeCasing, routeCore].forEach((path) => {
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('stroke-linejoin', 'round');
+    });
+    routeCasing.setAttribute('stroke', '#ffffff');
+    routeCore.setAttribute('stroke', '#1565A8');
+    routeArrows = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    routePins = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    routeSvg.appendChild(routeCasing);
+    routeSvg.appendChild(routeCore);
+    routeSvg.appendChild(routeArrows);
+    routeSvg.appendChild(routePins);
+  }
+
+  function paintRouteArrows(size) {
+    if (!routeArrows) return;
+    routeArrows.textContent = '';
+    if (!pb.plan) return;
+    const half = Math.min(Math.max(2.4, size * 0.4), Math.max(1.7, size * 0.46));
+    const length = half * 2.15;
+    pb.plan.legs.forEach((leg) => {
+      if (leg.kind !== 'walk' || leg.level !== activeLevel || !leg.arrows) return;
+      leg.arrows.forEach((arrow) => {
+        if (!arrow.visible) return;
+        const x = arrow.position.x;
+        const y = arrow.position.y;
+        const z = arrow.position.z;
+        const heading = arrow.rotation.z;
+        const spot = projectScene(x, y, z);
+        const ahead = projectScene(x + Math.cos(heading) * 0.45, y + Math.sin(heading) * 0.45, z);
+        if (!spot || !ahead) return;
+        const ang = Math.atan2(ahead[1] - spot[1], ahead[0] - spot[0]);
+        const fx = Math.cos(ang);
+        const fy = Math.sin(ang);
+        const tip = [spot[0] + fx * length * 0.7, spot[1] + fy * length * 0.7];
+        const tail = [spot[0] - fx * length * 0.55, spot[1] - fy * length * 0.55];
+        const left = [tail[0] - fy * half, tail[1] + fx * half];
+        const right = [tail[0] + fy * half, tail[1] - fx * half];
+        const mark = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        mark.setAttribute('d', 'M' + tip[0].toFixed(1) + ' ' + tip[1].toFixed(1) + ' L' + left[0].toFixed(1) + ' ' + left[1].toFixed(1) + ' L' + right[0].toFixed(1) + ' ' + right[1].toFixed(1) + ' Z');
+        mark.setAttribute('fill', '#ffffff');
+        mark.setAttribute('stroke', 'none');
+        routeArrows.appendChild(mark);
+      });
+    });
+  }
+
+  function paintRoutePins() {
+    if (!routePins) return;
+    routePins.textContent = '';
+    const mpp = metersPerPixel();
+    pinGroup.children.forEach((pin) => {
+      const kind = pin.userData.pin;
+      if ((kind !== 'start' && kind !== 'end') || !pin.visible) return;
+      const spot = projectScene(pin.position.x, pin.position.y, pin.position.z);
+      if (!spot) return;
+      const scale = pin.scale.x || 1;
+      const halo = Math.max(8, (scale * 0.62) / mpp);
+      const color = kind === 'start' ? '#15803D' : '#B42318';
+      const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      ring.setAttribute('cx', spot[0].toFixed(1));
+      ring.setAttribute('cy', spot[1].toFixed(1));
+      ring.setAttribute('r', halo.toFixed(1));
+      ring.setAttribute('fill', '#ffffff');
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('cx', spot[0].toFixed(1));
+      dot.setAttribute('cy', spot[1].toFixed(1));
+      dot.setAttribute('r', (halo * 0.68).toFixed(1));
+      dot.setAttribute('fill', color);
+      routePins.appendChild(ring);
+      routePins.appendChild(dot);
+    });
+  }
+
+  function paintRouteOverlay() {
+    ensureRouteOverlay();
+    if (!routeSvg) return;
+    const canvas = map.getCanvas();
+    routeSvg.setAttribute('viewBox', '0 0 ' + canvas.clientWidth + ' ' + canvas.clientHeight);
+    let d = '';
+    if (pb.plan) {
+      pb.plan.legs.forEach((leg) => {
+        if (leg.kind !== 'walk' || leg.level !== activeLevel) return;
+        const pts = trailPoints(leg);
+        if (pts.length < 2) return;
+        const z = leg.elev + TRAIL_Z;
+        let open = false;
+        pts.forEach((p) => {
+          const s = projectScene(p[0], p[1], z);
+          if (!s) {
+            open = false;
+            return;
+          }
+          d += (open ? 'L' : 'M') + s[0].toFixed(1) + ' ' + s[1].toFixed(1);
+          open = true;
+        });
+      });
+    }
+    const core = Math.max(3.2, (trailWidth * 0.72) / metersPerPixel());
+    const casing = core + Math.max(1.4, core * 0.45);
+    routeCasing.setAttribute('d', d);
+    routeCore.setAttribute('d', d);
+    routeCasing.setAttribute('stroke-width', casing.toFixed(2));
+    routeCore.setAttribute('stroke-width', core.toFixed(2));
+    paintRouteArrows(core);
+    paintRoutePins();
+  }
+
   function placeLabels() {
     if (!labels.length || !haveProj) return;
     const canvas = map.getCanvas();
@@ -378,7 +516,7 @@ export function createScene3D(map, options) {
     const ready = [];
     labels.forEach((label) => {
       const xy = toScene(label.lngLat);
-      labelPoint.set(xy[0], -xy[1], label.height, 1).applyMatrix4(camera.projectionMatrix);
+      labelPoint.set(xy[0], -xy[1], label.height + world.position.z, 1).applyMatrix4(camera.projectionMatrix);
       if (labelPoint.w <= 0) {
         label.el.style.visibility = 'hidden';
         return;
@@ -390,15 +528,33 @@ export function createScene3D(map, options) {
         return;
       }
       const title = !!label.title;
-      label.el.style.fontSize = ((title ? 10 : 8) * scale).toFixed(2) + 'px';
-      label.el.style.padding = ((title ? 2.5 : 1) * scale).toFixed(2) + 'px ' + ((title ? 6 : 4) * scale).toFixed(2) + 'px';
+      const textPx = title
+        ? Math.max(12, 11 * scale)
+        : (label.icon ? Math.max(11, 10 * scale) : Math.max(10, 9 * scale));
+      const padY = title ? 3 : 1;
+      const padX = title ? 8 : 6;
+      label.el.style.fontSize = textPx.toFixed(0) + 'px';
+      label.el.style.padding = label.icon
+        ? padY + 'px ' + padX + 'px ' + padY + 'px 2px'
+        : padY + 'px ' + padX + 'px';
+      if (label.icon) {
+        const mark = label.el.querySelector('.label-icon');
+        if (mark) {
+          const iconPx = Math.round(Math.max(15, Math.min(19, 15 * Math.max(scale, 1))));
+          mark.style.width = iconPx + 'px';
+          mark.style.height = iconPx + 'px';
+        }
+      }
       label.el.style.visibility = 'hidden';
-      label.el.style.transform = 'translate(' + px.toFixed(1) + 'px,' + py.toFixed(1) + 'px) translate(-50%, -50%)';
+      const dpr = window.devicePixelRatio || 1;
+      const sx = Math.round(px * dpr) / dpr;
+      const sy = Math.round(py * dpr) / dpr;
+      label.el.style.transform = 'translate(' + sx + 'px,' + sy + 'px) translate(-50%, -50%)';
       ready.push({ label: label, px: px, py: py });
     });
     ready.sort((a, b) => {
-      const pa = a.label.selected ? 0 : a.label.priority;
-      const pb = b.label.selected ? 0 : b.label.priority;
+      const pa = a.label.selected || a.label.role ? 0 : a.label.priority;
+      const pb = b.label.selected || b.label.role ? 0 : b.label.priority;
       if (pa !== pb) return pa - pb;
       return a.px - b.px;
     });
@@ -407,21 +563,34 @@ export function createScene3D(map, options) {
       const width = item.label.el.offsetWidth;
       const height = item.label.el.offsetHeight;
       const box = { x: item.px - width / 2, y: item.py - height / 2, w: width, h: height };
-      if (!item.label.selected && !item.label.car && width > 0 && drawn.some((other) => labelsOverlap(box, other))) return;
+      if (!item.label.selected && !item.label.car && !item.label.role && width > 0 && drawn.some((other) => labelsOverlap(box, other))) return;
       drawn.push(box);
       item.label.el.style.visibility = 'visible';
     });
   }
 
   function setLabels(list) {
+    const ends = document.getElementById('endpoint-labels');
     labelHost.textContent = '';
+    if (ends) ends.textContent = '';
     labels = list.map((item) => {
       const el = document.createElement('div');
-      el.className = 'room-label' + (item.title ? ' building-title' : '') + (item.car ? ' is-car' : '') + (item.selected ? ' is-selected' : '');
-      el.textContent = item.text;
+      const role = item.role === 'start' || item.role === 'end' ? item.role : '';
+      el.className = 'room-label' + (item.title ? ' building-title' : '') + (item.car ? ' is-car' : '') + (item.selected ? ' is-selected' : '') + (role ? ' is-' + role : '');
+      if (item.icon && !item.title && window.IndoorPlaces && IndoorPlaces.glyph) {
+        const glyph = IndoorPlaces.glyph(item.icon);
+        const mark = document.createElement('span');
+        mark.className = 'label-icon';
+        mark.style.background = glyph.color;
+        mark.innerHTML = glyph.svg;
+        el.appendChild(mark);
+      }
+      const name = document.createElement('span');
+      name.textContent = item.text;
+      el.appendChild(name);
       el.style.visibility = 'hidden';
-      labelHost.appendChild(el);
-      return { el, lngLat: item.lngLat, height: item.height || 0, title: !!item.title, selected: !!item.selected, car: !!item.car, priority: item.priority == null ? 1 : item.priority };
+      (role && ends ? ends : labelHost).appendChild(el);
+      return { el, lngLat: item.lngLat, height: item.height || 0, title: !!item.title, selected: !!item.selected, car: !!item.car, role: role, icon: item.icon || '', priority: item.priority == null ? 1 : item.priority };
     });
     map.triggerRepaint();
   }
@@ -480,6 +649,7 @@ export function createScene3D(map, options) {
     const group = new THREE.Group();
     group.position.set(xy[0], xy[1], elev + PIN_Z);
     group.userData.level = level;
+    group.userData.pin = kind;
     const halo = new THREE.Mesh(DISC, MAT.white);
     halo.scale.setScalar(0.62);
     const dot = new THREE.Mesh(DISC, MAT[kind]);
@@ -550,7 +720,16 @@ export function createScene3D(map, options) {
       }
       const catOn = !d.category || !shellCats || shellCats[d.category] !== false;
       m.visible = d.level === activeLevel && catOn;
-      if (m.material && m.material.color) m.material.color.set(unitColor(d));
+      if (m.material && m.material.color) {
+        m.material.color.set(unitColor(d));
+        if (d.kind === 'unit') {
+          const dim = unitDimmed(d);
+          m.material.opacity = dim ? 0.22 : 1;
+          m.material.transparent = !!dim;
+          m.material.depthWrite = !dim;
+          m.material.needsUpdate = true;
+        }
+      }
       applySkin(m);
     });
     pathGroup.children.forEach((m) => { m.visible = pathwaysOn && m.userData.level === activeLevel; });
@@ -1169,6 +1348,8 @@ export function createScene3D(map, options) {
         if (tex) paintUVs(geo, tex.tile);
         const mesh = new THREE.Mesh(geo, basic(part.color));
         mesh.frustumCulled = false;
+        if (part.kind === 'unit') mesh.renderOrder = 2;
+        if (part.kind === 'border') mesh.renderOrder = 3;
         mesh.userData = {
           ownMaterial: true,
           level: part.level,
@@ -1192,12 +1373,27 @@ export function createScene3D(map, options) {
     map.triggerRepaint();
   }
 
+  function unitDimmed(d) {
+    return !!(highlightIds && d.kind === 'unit' && d.category !== 'corridor' && d.id != null && !highlightIds.has(String(d.id)) && String(d.id) !== String(shellSelected));
+  }
+
+  function setHighlight(ids) {
+    highlightIds = ids == null ? null : new Set(ids.map(String));
+    syncVisibility();
+    map.triggerRepaint();
+  }
+
   function setUnitTone(selectedId, hoverId) {
     shellSelected = selectedId;
     shellHover = hoverId;
     shellGroup.children.forEach((m) => {
       if (m.userData.kind !== 'unit' || !m.material) return;
-      m.material.color.set(unitColor(m.userData));
+      const d = m.userData;
+      m.material.color.set(unitColor(d));
+      const dim = unitDimmed(d);
+      m.material.opacity = dim ? 0.22 : 1;
+      m.material.transparent = !!dim;
+      m.material.depthWrite = !dim;
     });
     map.triggerRepaint();
   }
@@ -1209,10 +1405,11 @@ export function createScene3D(map, options) {
     map.triggerRepaint();
   }
 
-  function setActiveLevel(levelId, rank, cats) {
+  function setActiveLevel(levelId, rank, cats, floorZ) {
     activeLevel = levelId;
     if (rank != null) shellRank = rank;
     if (cats) shellCats = cats;
+    if (floorZ != null && isFinite(floorZ)) world.position.z = Math.max(0, 1.2 - floorZ);
     syncVisibility();
     map.triggerRepaint();
   }
@@ -1463,6 +1660,7 @@ export function createScene3D(map, options) {
       arrow.userData.limit = 0;
       arrow.userData.ownMaterial = true;
       arrow.visible = false;
+      arrow.scale.setScalar(0);
       arrow.renderOrder = 8;
       routeGroup.add(arrow);
       if (!leg.arrows) leg.arrows = [];
@@ -1497,8 +1695,6 @@ export function createScene3D(map, options) {
         makePin('via', leg.to, leg.xy, leg.toElev);
       }
     });
-    makePin('start', plan.start.level, plan.start.xy, plan.start.elev);
-    makePin('end', plan.end.level, plan.end.xy, plan.end.elev);
     pb.plan = plan;
     pb.leg = 0;
     pb.done = false;
@@ -1722,6 +1918,7 @@ export function createScene3D(map, options) {
     setShell,
     setSite,
     setUnitTone,
+    setHighlight,
     setSolid,
     setActiveLevel,
     setRoute,

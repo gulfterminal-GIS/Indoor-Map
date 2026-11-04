@@ -3,7 +3,7 @@ import { createScene3D } from './scene3d.js';
 const FLOOR_HEIGHT = 4;
 const BASE = 1.4;
 const SLAB = 0.25;
-const UNIT_TOP = 0.06;
+const UNIT_TOP = 0.16;
 const WALL_HEIGHT = 2.6;
 const PLAN_SCALE = 60 / 220;
 const WALL_THICK = 0.28 * PLAN_SCALE;
@@ -11,7 +11,6 @@ const DOOR_WIDTH = 1.6 * PLAN_SCALE;
 const BORDER_WIDTH = 0.22 * PLAN_SCALE;
 const PITCH_3D = 55;
 const BEARING_3D = -18;
-const DRAW_MS = 8000;
 const ROUTE_ZOOM = 20.4;
 const FLOOR_GROUND = [0xF4D7A8, 0xB9D4F5, 0xC6E7C8, 0xF3C6D6];
 
@@ -224,10 +223,10 @@ function cameraPadding() {
     bottom = sheet + (phone ? 96 : 120);
   }
   return {
-    top: phone ? 88 : 76,
+    top: phone ? 128 : 116,
     bottom: bottom,
     left: dock && !narrow ? 400 : (phone ? 28 : 48),
-    right: detail && !narrow ? 360 : (phone ? 28 : 48)
+    right: detail && !narrow ? 420 : (phone ? 76 : 88)
   };
 }
 
@@ -558,7 +557,7 @@ function buildWalls() {
 
 function applyFilters() {
   if (!layersReady || !state.levelId) return;
-  scene3d.setActiveLevel(state.levelId, floorOrdinal(state.levelId), state.layers);
+  scene3d.setActiveLevel(state.levelId, floorOrdinal(state.levelId), state.layers, floorBase(floorOrdinal(state.levelId)));
   scene3d.setPathwaysVisible(state.layers.pathway);
   scene3d.setNetworkVisible(state.layers.network);
   scene3d.setUnitTone(state.selectedId, state.hoverId);
@@ -962,6 +961,14 @@ function syncGlass() {
   if (document.documentElement.getAttribute('data-theme') === 'glass') IndoorUI.syncLiquidGlass();
 }
 
+function floorCode(floor) {
+  if (floor.ordinal > 0) return String(floor.ordinal);
+  if (floor.ordinal === 0) return 'G';
+  const id = String(floor.id || '').toUpperCase();
+  if (id && id.length <= 3) return id;
+  return 'B' + (-floor.ordinal);
+}
+
 function syncFloorUi() {
   const pills = document.getElementById('floor-pills');
   pills.innerHTML = '';
@@ -973,7 +980,9 @@ function syncFloorUi() {
     swatch.className = 'floor-swatch';
     swatch.style.background = '#' + floorGround(floor.ordinal).toString(16).padStart(6, '0');
     btn.appendChild(swatch);
-    btn.appendChild(document.createTextNode(floor.name));
+    btn.appendChild(document.createTextNode(floorCode(floor)));
+    btn.title = floor.name;
+    btn.setAttribute('aria-label', floor.name);
     btn.setAttribute('aria-pressed', floor.id === state.levelId ? 'true' : 'false');
     btn.addEventListener('click', () => setFloor(floor.id, true));
     pills.appendChild(btn);
@@ -1055,7 +1064,7 @@ function setFloor(id, fly) {
   refreshLabels();
   updateStatus();
   if (fly) fitFloor(false);
-  else if (changed && !scene3d.isPlaying()) recenterOnFloor();
+  else if (changed && !scene3d.isPlaying() && !nav) recenterOnFloor();
 }
 
 function recenterOnFloor() {
@@ -1124,17 +1133,23 @@ function refreshLabels() {
       priority: 0
     });
   });
-  if (state.layers.labels) {
+  if (state.layers.labels || state.route) {
     const zoom = map.getZoom();
     const height = levelElev(state.levelId) + 0.35;
     const carId = carFeatureId();
+    const labelsOn = !!state.layers.labels;
     collection.features.forEach((f) => {
       const p = f.properties;
       if (p.feature_type !== 'unit' || p.level_id !== state.levelId) return;
-      if (!state.layers[p.category] || p.category === 'corridor') return;
+      const role = routeLabelRole(f);
+      if (p.category === 'corridor') return;
+      if (!role && !state.layers[p.category]) return;
       const selected = String(f.id) === String(state.selectedId);
       const car = carId !== '' && carId === String(f.id);
-      if (zoom < 17.6 && !selected && !car) return;
+      const info = placeInfo(p);
+      if (!labelsOn && !role) return;
+      if (zoom < 17.6 && !state.route && !selected && !car && !role) return;
+      if (state.exploreKind !== 'all' && !selected && !car && !role && info.kind !== state.exploreKind) return;
       const circulation = p.category === 'escalator' || p.category === 'elevator' || p.category === 'stair';
       list.push({
         text: car ? p.name + ' · Car' : p.name,
@@ -1142,15 +1157,31 @@ function refreshLabels() {
         height: height,
         selected: selected,
         car: car,
-        priority: selected || car ? 0 : circulation ? 2 : 1
+        role: role,
+        icon: car ? 'car' : info.icon,
+        priority: selected || car || role ? 0 : circulation ? 2 : 1
       });
     });
   }
   scene3d.setLabels(list);
 }
 
+function routeLabelRole(feature) {
+  if (!state.route || !feature) return '';
+  const id = String(feature.id);
+  const name = feature.properties && feature.properties.name;
+  const level = feature.properties && feature.properties.level_id;
+  const match = (ep) => ep && ep.level_id === level && ((ep.id != null && String(ep.id) === id) || (ep.id == null && ep.name && ep.name === name));
+  if (match(state.endpoints.from)) return 'start';
+  if (match(state.endpoints.to)) return 'end';
+  return '';
+}
+
 function paintSelect(id) {
   state.selectedId = id;
+  document.querySelectorAll('#explore-list .explore-card').forEach((card) => {
+    card.classList.toggle('is-current', id != null && card.dataset.place === String(id));
+  });
   if (scene3d) scene3d.setUnitTone(state.selectedId, state.hoverId);
 }
 
@@ -1165,32 +1196,69 @@ function placeInfo(properties) {
   return window.IndoorPlaces ? IndoorPlaces.info(properties) : { kind: 'room', kindLabel: 'Place', about: '', offers: [], crowd: 'steady', crowdLabel: 'Usually steady', crowdLevel: 2 };
 }
 
+function kindButton(kind) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'kind-chip';
+  btn.dataset.kind = kind.id;
+  btn.textContent = kind.label;
+  return btn;
+}
+
+function ensureFilterChips() {
+  const chips = document.getElementById('filter-chips');
+  const extra = document.getElementById('filter-extra');
+  if (!chips || chips.childElementCount || !window.IndoorPlaces) return;
+  const byId = {};
+  IndoorPlaces.KINDS.forEach((kind) => { byId[kind.id] = kind; });
+  ['eat', 'shop', 'service', 'rest', 'park'].forEach((id) => { if (byId[id]) chips.appendChild(kindButton(byId[id])); });
+  ['see', 'room'].forEach((id) => { if (byId[id]) extra.appendChild(kindButton(byId[id])); });
+}
+
+function highlightIds() {
+  if (!collection || state.exploreKind === 'all') return null;
+  const ids = [];
+  collection.features.forEach((f) => {
+    const p = f.properties || {};
+    if (p.feature_type !== 'unit' || p.level_id !== state.levelId) return;
+    if (placeInfo(p).kind === state.exploreKind) ids.push(String(f.id));
+  });
+  return ids;
+}
+
+function syncHighlight() {
+  if (scene3d) scene3d.setHighlight(highlightIds());
+}
+
 function renderExplore() {
   const host = document.getElementById('explore-list');
-  const kinds = document.getElementById('explore-kinds');
-  if (!host || !kinds) return;
-  if (!kinds.childElementCount && window.IndoorPlaces) {
-    IndoorPlaces.KINDS.forEach((kind) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'kind-chip';
-      btn.dataset.kind = kind.id;
-      btn.textContent = kind.label;
-      kinds.appendChild(btn);
-    });
-  }
-  kinds.querySelectorAll('.kind-chip').forEach((btn) => {
+  if (!host) return;
+  ensureFilterChips();
+  document.querySelectorAll('#filter-bar [data-kind]').forEach((btn) => {
     const on = btn.dataset.kind === state.exploreKind;
     btn.classList.toggle('active', on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
+  const more = document.getElementById('filter-more');
+  const extraOn = state.exploreKind === 'see' || state.exploreKind === 'room';
+  if (more) {
+    const label = extraOn ? (state.exploreKind === 'see' ? 'See & do' : 'Rooms') : 'More';
+    more.textContent = label;
+    more.classList.toggle('active', extraOn);
+    more.setAttribute('aria-pressed', extraOn ? 'true' : 'false');
+  }
   document.querySelectorAll('[data-scope]').forEach((btn) => {
     const on = btn.dataset.scope === state.exploreScope;
     btn.classList.toggle('active', on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
+  syncHighlight();
+  if (scene3d) refreshLabels();
+  const countBtn = document.getElementById('filter-count');
   if (!collection) {
     host.innerHTML = '';
+    if (countBtn) countBtn.hidden = true;
+    syncDockTitle();
     return;
   }
   const q = (document.getElementById('explore-search').value || '').trim().toLowerCase();
@@ -1214,23 +1282,32 @@ function renderExplore() {
     if (rank) return rank;
     return String(ap.name).localeCompare(String(bp.name));
   });
+  if (countBtn) {
+    const here = hits.filter((f) => f.properties.level_id === state.levelId).length;
+    const show = state.exploreKind !== 'all' || !!q;
+    countBtn.hidden = !show;
+    countBtn.textContent = here + (here === 1 ? ' place' : ' places') + ' on this floor';
+  }
   if (!hits.length) {
     host.innerHTML = '<p class="muted">' + (q ? 'Nothing matches that.' : 'Nothing of this type on this floor.') + '</p>';
+    syncDockTitle();
     return;
   }
   const carId = carFeatureId();
-  host.innerHTML = hits.map((f) => {
+  host.innerHTML = hits.map((f, index) => {
     const p = f.properties;
     const info = placeInfo(p);
     const line = info.offers.length ? info.offers.join(', ') : (info.about || info.kindLabel);
     const where = state.exploreScope === 'all' || p.level_id !== state.levelId ? (p.level_name || floorName(p.level_id)) : info.kindLabel;
     const mine = carId !== '' && carId === String(f.id);
-    return '<button type="button" class="explore-card" data-place="' + esc(f.id) + '">'
+    const current = String(f.id) === String(state.selectedId) ? ' is-current' : '';
+    return '<button type="button" class="explore-card' + current + '" style="animation-delay:' + (Math.min(index, 8) * 30) + 'ms" data-place="' + esc(f.id) + '">'
       + '<span class="explore-main"><strong>' + esc(p.name) + '</strong><span>' + esc(line) + '</span></span>'
       + '<span class="explore-side">' + (mine ? '<span class="explore-car">My car</span>' : '')
       + '<span class="crowd crowd-' + info.crowd + '">' + esc(info.crowdLabel.replace('Usually ', '')) + '</span><span class="explore-where">' + esc(where) + '</span></span>'
       + '</button>';
   }).join('');
+  syncDockTitle();
 }
 
 function openDetail(feature) {
@@ -1591,6 +1668,8 @@ function syncEndpointUi(which) {
   const input = document.getElementById(which === 'from' ? 'from-search' : 'to-search');
   const note = document.getElementById(which === 'from' ? 'from-note' : 'to-note');
   input.value = ep ? ep.name : '';
+  const field = input.closest('.field');
+  if (field) field.classList.toggle('is-set', !!ep);
   if (ep && ep.source === 'gps') note.textContent = (ep.level_name || 'This floor') + ' · from your phone';
   else note.textContent = ep ? [ep.building, ep.level_name].filter(Boolean).join(' · ') : '';
   if (which === 'from') {
@@ -1682,6 +1761,8 @@ function setTool(tool) {
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
   syncPickGuide();
+  const dock = document.getElementById('dock');
+  if (dock) dock.classList.toggle('is-picking', next === 'from' || next === 'to' || next === 'draw');
   if (next === 'from') IndoorUI.toast('Tap the start on the map.');
   else if (next === 'to') IndoorUI.toast('Tap the destination on the map.');
   else if (next === 'draw') IndoorUI.toast('Tap the start, then the destination.');
@@ -1711,12 +1792,14 @@ function calculate() {
 }
 
 function clearRoute() {
+  stopNav(false);
   playToken += 1;
   state.route = null;
   state.step = 0;
   hideRideCaption();
   if (scene3d) scene3d.clearRoute();
   if (map) map.stop();
+  refreshLabels();
   renderSteps();
   updateStatus();
   paintUser();
@@ -1748,7 +1831,7 @@ function gpsHit(lngLat) {
 }
 
 function paintUser() {
-  if (!scene3d) return;
+  if (!scene3d || nav) return;
   const hit = deviceFix ? gpsHit(deviceFix.lngLat) : null;
   if (!deviceFix || !hit || state.hereHidden) {
     scene3d.setUser(null);
@@ -1806,10 +1889,6 @@ function useDeviceLocation() {
 function askDestination() {
   if (state.destAsked) return;
   state.destAsked = true;
-  const lead = document.getElementById('directions-lead');
-  if (lead) lead.textContent = 'You are here. Where do you want to go?';
-  openDock('directions', true);
-  IndoorUI.toast('You are here. Choose a destination.');
 }
 
 function onLocate(pos) {
@@ -1817,6 +1896,10 @@ function onLocate(pos) {
     lngLat: [pos.coords.longitude, pos.coords.latitude],
     heading: pos.coords.heading
   };
+  if (nav) {
+    navGps();
+    return;
+  }
   paintUser();
   if (!gpsHit(deviceFix.lngLat)) {
     if (!state.locateNoted) {
@@ -1929,6 +2012,7 @@ function buildPlan(result) {
 }
 
 function showRoute(result) {
+  stopNav(false);
   state.route = result;
   state.step = 0;
   scene3d.setDraft(null);
@@ -1943,69 +2027,402 @@ function showRoute(result) {
   startDeviceTrack();
 }
 
-let routeStarted = 0;
+function zoomForSpan(meters, pixels) {
+  const lat = spatial.origin.lat * Math.PI / 180;
+  const mpp = Math.max(meters, 6) / Math.max(pixels, 72);
+  return Math.log2((156543.03392 * Math.cos(lat)) / mpp);
+}
 
-function frameRoute(levelId, duration) {
+function routeViewBox() {
+  const canvas = map.getCanvas();
+  const mapRect = canvas.getBoundingClientRect();
+  const width = mapRect.width || canvas.clientWidth || window.innerWidth;
+  const height = mapRect.height || canvas.clientHeight || window.innerHeight;
+  let top = 16;
+  let bottom = height - 16;
+  let left = 56;
+  let right = width - 56;
+  const filter = document.getElementById('top-bar') || document.getElementById('filter-bar');
+  const dock = document.getElementById('dock');
+  const toolbar = document.getElementById('map-toolbar');
+  if (filter) {
+    const rect = filter.getBoundingClientRect();
+    top = Math.max(top, rect.bottom - mapRect.top + 24);
+  }
+  if (dock && dock.classList.contains('open')) {
+    const rect = dock.getBoundingClientRect();
+    bottom = Math.min(bottom, rect.top - mapRect.top - 16);
+  }
+  if (toolbar) {
+    const rect = toolbar.getBoundingClientRect();
+    bottom = Math.min(bottom, rect.top - mapRect.top - 12);
+  }
+  if (bottom - top < 150) {
+    top = Math.max(16, height * 0.36);
+    bottom = Math.min(height - 16, top + Math.max(160, height * 0.28));
+  }
+  return { top: top, bottom: bottom, left: left, right: right, width: width, height: height };
+}
+
+function frameRouteExtent(duration, resetBearing) {
   if (!state.route || !map) return;
-  const lines = state.route.segments
-    .filter((s) => s.level_id === levelId)
-    .map((s) => s.coordinates)
-    .filter((line) => line && line.length);
-  if (!lines.length) return;
+  const lines = state.route.segments.map((segment) => segment.coordinates).filter((line) => line && line.length);
+  if (state.route.from && state.route.from.lonlat) lines.push([state.route.from.lonlat]);
+  if (state.route.to && state.route.to.lonlat) lines.push([state.route.to.lonlat]);
   const bounds = boundsOfLines(lines);
   if (!bounds) return;
-  const bearing = state.is3d ? BEARING_3D : map.getBearing();
+  const box = routeViewBox();
+  const viewW = Math.max(120, box.right - box.left);
+  const viewH = Math.max(140, box.bottom - box.top);
+  const spanX = Math.abs(bounds[1][0] - bounds[0][0]) * spatial.lonScale;
+  const spanY = Math.abs(bounds[1][1] - bounds[0][1]) * spatial.latScale;
+  const zoom = Math.min(20.2, Math.max(18.2, Math.min(zoomForSpan(spanX, viewW * 0.72), zoomForSpan(spanY, viewH * 0.72))));
+  const mid = [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2];
+  const bearing = state.is3d ? BEARING_3D : (resetBearing ? 0 : map.getBearing());
   const pitch = targetPitch();
-  const elev = levelElev(levelId);
-  const shifted = cameraCenter(bounds[0], elev, pitch, bearing);
-  const dx = shifted[0] - bounds[0][0];
-  const dy = shifted[1] - bounds[0][1];
-  const fitted = map.cameraForBounds(
-    [[bounds[0][0] + dx, bounds[0][1] + dy], [bounds[1][0] + dx, bounds[1][1] + dy]],
-    { padding: cameraPadding(), maxZoom: 21.2, bearing: bearing, pitch: pitch }
-  );
-  const fitZoom = fitted && isFinite(fitted.zoom) ? fitted.zoom : ROUTE_ZOOM;
-  const zoom = Math.max(map.getZoom(), Math.min(21.2, Math.max(ROUTE_ZOOM, fitZoom)));
-  const focus = lines[0][0];
-  const stayClose = zoom > fitZoom + 0.15;
-  state._lastElev = elev;
-  const camera = {
-    center: !stayClose && fitted ? fitted.center : cameraCenter(focus, elev, pitch, bearing),
+  state.follow = false;
+  state._lastElev = levelElev(state.levelId);
+  map.easeTo({
+    center: cameraCenter(mid, state._lastElev, pitch, bearing),
     zoom: zoom,
     bearing: bearing,
     pitch: pitch,
-    duration: Math.min(duration == null ? motion(800) : duration, motion(900)),
+    padding: {
+      top: box.top,
+      bottom: Math.max(0, box.height - box.bottom),
+      left: box.left,
+      right: Math.max(0, box.width - box.right)
+    },
+    duration: duration == null ? motion(900) : duration,
     essential: true,
     easing: (t) => 1 - Math.pow(1 - t, 3)
-  };
-  if (stayClose) camera.padding = cameraPadding();
-  map.easeTo(camera);
+  });
 }
 
 function startPlayback() {
   if (!state.route) return;
   playToken += 1;
   hideRideCaption();
+  stopNav(false);
   scene3d.reset();
   scene3d.play();
+  renderSteps();
   if (state.levelId !== state.route.from.level_id) setFloor(state.route.from.level_id, false);
-  state.follow = false;
-  routeStarted = performance.now();
   if (reducedMotion()) {
+    state.follow = false;
     scene3d.finish();
-    frameRoute(state.route.to.level_id, 0);
+    frameRouteExtent(0);
     return;
   }
-  frameRoute(state.route.from.level_id, DRAW_MS);
+  state.follow = true;
 }
 
 function followCamera(info) {
   state._lastElev = info.elev;
   if (!state.follow) return;
-  const target = cameraCenter(info.lngLat, info.elev, map.getPitch(), map.getBearing());
+  const pitch = map.getPitch();
+  const bearing = map.getBearing();
+  const target = cameraCenter(info.lngLat, info.elev, pitch, bearing);
   const c = map.getCenter();
-  const k = 0.14;
-  map.jumpTo({ center: [c.lng + (target[0] - c.lng) * k, c.lat + (target[1] - c.lat) * k] });
+  const k = 0.28;
+  const zoom = map.getZoom();
+  const want = Math.max(zoom, ROUTE_ZOOM);
+  map.jumpTo({
+    center: [c.lng + (target[0] - c.lng) * k, c.lat + (target[1] - c.lat) * k],
+    zoom: zoom + (want - zoom) * 0.08
+  });
+}
+
+let nav = null;
+const NAV_SPEED = 1.2;
+const NAV_RIDE_M = 6;
+const NAV_PITCH = 55;
+const NAV_ZOOM = 20.6;
+
+function navPieces(route) {
+  const pieces = [];
+  let at = 0;
+  route.steps.forEach((step, index) => {
+    if (step.kind === 'walk' && step.coordinates && step.coordinates.length > 1) {
+      const pts = step.coordinates.map((c) => spatial.toMeters(c[0], c[1]));
+      const cum = [0];
+      for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+      const length = cum[cum.length - 1];
+      if (length <= 0) return;
+      pieces.push({ step: index, kind: 'walk', level: step.level_id, fromLevel: step.level_id, pts: pts, cum: cum, start: at, length: length });
+      at += length;
+    } else if (step.kind === 'transition') {
+      const from = step.fromFocus || step.focus;
+      const to = step.toFocus || step.focus;
+      if (!from || !to) return;
+      pieces.push({
+        step: index,
+        kind: 'ride',
+        level: step.toLevel,
+        fromLevel: step.fromLevel,
+        pts: [spatial.toMeters(from[0], from[1]), spatial.toMeters(to[0], to[1])],
+        cum: [0, NAV_RIDE_M],
+        start: at,
+        length: NAV_RIDE_M
+      });
+      at += NAV_RIDE_M;
+    }
+  });
+  return { pieces: pieces, total: at };
+}
+
+function navPoint(d) {
+  const list = nav.pieces;
+  let piece = list[list.length - 1];
+  for (let k = 0; k < list.length; k++) {
+    if (d <= list[k].start + list[k].length) {
+      piece = list[k];
+      break;
+    }
+  }
+  const local = Math.max(0, Math.min(piece.length, d - piece.start));
+  if (piece.kind === 'ride') {
+    const u = piece.length ? local / piece.length : 1;
+    const a = piece.pts[0];
+    const b = piece.pts[1];
+    const low = levelElev(piece.fromLevel);
+    return {
+      piece: piece,
+      x: a[0] + (b[0] - a[0]) * u,
+      y: a[1] + (b[1] - a[1]) * u,
+      level: u < 0.5 ? piece.fromLevel : piece.level,
+      elev: low + (levelElev(piece.level) - low) * u,
+      heading: null
+    };
+  }
+  let i = 1;
+  while (i < piece.cum.length - 1 && piece.cum[i] < local) i++;
+  const seg = piece.cum[i] - piece.cum[i - 1];
+  const u = seg ? (local - piece.cum[i - 1]) / seg : 0;
+  const a = piece.pts[i - 1];
+  const b = piece.pts[i];
+  return {
+    piece: piece,
+    x: a[0] + (b[0] - a[0]) * u,
+    y: a[1] + (b[1] - a[1]) * u,
+    level: piece.level,
+    elev: levelElev(piece.level),
+    heading: Math.atan2(b[0] - a[0], b[1] - a[1]) * 180 / Math.PI
+  };
+}
+
+function navSnap(lngLat, levelId) {
+  const p = spatial.toMeters(lngLat[0], lngLat[1]);
+  let best = null;
+  nav.pieces.forEach((piece) => {
+    if (piece.kind !== 'walk') return;
+    const away = piece.level === levelId ? 0 : 1000;
+    for (let i = 1; i < piece.pts.length; i++) {
+      const a = piece.pts[i - 1];
+      const b = piece.pts[i];
+      const dx = b[0] - a[0];
+      const dy = b[1] - a[1];
+      const len2 = dx * dx + dy * dy;
+      const t = len2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2)) : 0;
+      const gap = Math.hypot(a[0] + dx * t - p[0], a[1] + dy * t - p[1]) + away;
+      if (!best || gap < best.gap) best = { gap: gap, d: piece.start + piece.cum[i - 1] + Math.sqrt(len2) * t };
+    }
+  });
+  return best;
+}
+
+function turnToward(from, to, k) {
+  const diff = ((to - from + 540) % 360) - 180;
+  return (from + diff * k + 360) % 360;
+}
+
+function startNav() {
+  if (!state.route || !spatial || !map) return;
+  const built = navPieces(state.route);
+  if (!built.pieces.length || !built.total) {
+    IndoorUI.toast('This route is too short to follow.');
+    return;
+  }
+  stopNav(false);
+  const hit = deviceFix ? gpsHit(deviceFix.lngLat) : null;
+  const c = map.getCenter();
+  nav = {
+    pieces: built.pieces,
+    total: built.total,
+    mode: hit ? 'gps' : 'preview',
+    d: 0,
+    target: 0,
+    level: null,
+    paused: false,
+    lost: false,
+    arrived: false,
+    bearing: (map.getBearing() + 360) % 360,
+    cam: { lng: c.lng, lat: c.lat, zoom: map.getZoom(), pitch: map.getPitch() },
+    last: 0,
+    raf: 0,
+    key: ''
+  };
+  if (hit) {
+    const snap = navSnap(deviceFix.lngLat, hit.floor.id);
+    if (snap) nav.d = nav.target = snap.d;
+  }
+  if (state.tool) setTool(null);
+  if (window.innerWidth <= 900) closeDock();
+  hideRideCaption();
+  state.follow = false;
+  document.getElementById('nav-banner').hidden = false;
+  document.getElementById('btn-nav-recenter').hidden = true;
+  document.body.classList.add('is-navigating');
+  renderSteps();
+  nav.raf = requestAnimationFrame(navTick);
+}
+
+function stopNav(reframe) {
+  if (!nav) return;
+  if (nav.raf) cancelAnimationFrame(nav.raf);
+  nav = null;
+  document.getElementById('nav-banner').hidden = true;
+  document.body.classList.remove('is-navigating');
+  paintUser();
+  if (!map) return;
+  if (reframe && state.route) {
+    openDock('directions', true);
+    renderSteps();
+    frameRouteExtent(undefined, true);
+  } else {
+    map.jumpTo({ pitch: targetPitch(), bearing: state.is3d ? BEARING_3D : 0 });
+  }
+}
+
+function navGps() {
+  if (!nav || nav.mode !== 'gps' || !deviceFix) return;
+  const hit = gpsHit(deviceFix.lngLat);
+  nav.lost = !hit;
+  if (!hit) return;
+  const snap = navSnap(deviceFix.lngLat, hit.floor.id);
+  if (snap) nav.target = snap.d;
+}
+
+function navTick(now) {
+  if (!nav) return;
+  nav.raf = 0;
+  const dt = nav.last ? Math.min(0.1, (now - nav.last) / 1000) : 1 / 60;
+  nav.last = now;
+  if (nav.mode === 'preview') {
+    nav.target = Math.min(nav.total, nav.target + NAV_SPEED * dt);
+    nav.d = nav.target;
+  } else {
+    nav.d += (nav.target - nav.d) * Math.min(1, dt * 4);
+  }
+  const pt = navPoint(nav.d);
+  if (pt.level !== nav.level) {
+    nav.level = pt.level;
+    if (pt.level !== state.levelId) setFloor(pt.level, false);
+  }
+  const phone = nav.mode === 'gps' && deviceFix && typeof deviceFix.heading === 'number' && isFinite(deviceFix.heading) ? deviceFix.heading : null;
+  const head = phone != null ? phone : pt.heading;
+  if (head != null) nav.bearing = turnToward(nav.bearing, (head + 360) % 360, Math.min(1, dt * 3));
+  const lngLat = spatial.toLonLat(pt.x, pt.y);
+  scene3d.setUser(lngLat, pt.elev, nav.bearing);
+  if (!nav.paused) navCamera(lngLat, pt.elev, dt);
+  if (!nav.arrived && nav.d >= nav.total - (nav.mode === 'gps' ? 3 : 0.05)) {
+    nav.arrived = true;
+    IndoorUI.toast('Arrived at ' + state.route.to.name);
+  }
+  paintNavBanner(pt);
+  if (nav.mode === 'preview' && nav.arrived && nav.d >= nav.total) {
+    nav.settle = (nav.settle || 0) + dt;
+    if (nav.settle > 1.2) return;
+  }
+  nav.raf = requestAnimationFrame(navTick);
+}
+
+function navCamera(lngLat, elev, dt) {
+  const k = Math.min(1, dt * 4);
+  const cam = nav.cam;
+  cam.zoom += (NAV_ZOOM - cam.zoom) * k;
+  cam.pitch += (NAV_PITCH - cam.pitch) * k;
+  const lat = spatial.origin.lat * Math.PI / 180;
+  const mpp = 156543.03392 * Math.cos(lat) / Math.pow(2, cam.zoom);
+  const height = map.getCanvas().clientHeight || window.innerHeight;
+  const ahead = mpp * height * 0.2 / Math.cos(cam.pitch * Math.PI / 180);
+  const b = nav.bearing * Math.PI / 180;
+  const front = [lngLat[0] + (ahead * Math.sin(b)) / spatial.lonScale, lngLat[1] + (ahead * Math.cos(b)) / spatial.latScale];
+  const target = cameraCenter(front, elev, cam.pitch, nav.bearing);
+  cam.lng += (target[0] - cam.lng) * k;
+  cam.lat += (target[1] - cam.lat) * k;
+  state._lastElev = elev;
+  map.jumpTo({ center: [cam.lng, cam.lat], zoom: cam.zoom, pitch: cam.pitch, bearing: nav.bearing });
+}
+
+function navLine(step) {
+  if (!step) return '';
+  if (step.kind === 'arrive') return 'Arrive at ' + (step.name || state.route.to.name);
+  if (step.kind === 'transition') return (step.text || 'Change floors') + (step.level_name ? ' to ' + step.level_name : '');
+  return step.text || 'Continue';
+}
+
+function paintNavBanner(pt) {
+  const steps = state.route.steps;
+  const index = pt.piece.step;
+  const current = steps[index];
+  let main;
+  let dist = '';
+  let next = null;
+  if (nav.arrived) {
+    main = { action: 'arrive', line: 'You have arrived at ' + state.route.to.name };
+  } else if (current.kind === 'transition') {
+    main = { action: current.action, line: navLine(current) };
+    next = steps[index + 1];
+  } else if (nav.d - pt.piece.start < 1 && index === nav.pieces[0].step) {
+    main = { action: current.action, line: navLine(current) };
+    dist = Math.max(1, Math.round(pt.piece.length)) + ' m';
+    next = steps[index + 1];
+  } else {
+    const up = steps[index + 1] || steps[steps.length - 1];
+    main = { action: up.action, line: navLine(up) };
+    dist = 'In ' + Math.max(1, Math.round(pt.piece.start + pt.piece.length - nav.d)) + ' m';
+    next = steps[index + 2];
+  }
+  let mode = '';
+  if (nav.mode === 'preview') mode = 'Preview. Your phone is not in this building.';
+  else if (nav.lost) mode = 'Looking for your location…';
+  const nextLine = next && !nav.arrived ? 'Then ' + navLine(next).charAt(0).toLowerCase() + navLine(next).slice(1) : '';
+  const key = [main.action, main.line, dist, nextLine, mode, nav.paused].join('|');
+  if (key === nav.key) return;
+  nav.key = key;
+  document.getElementById('nav-icon').innerHTML = stepIcon(main.action);
+  document.getElementById('nav-text').textContent = main.line;
+  const distEl = document.getElementById('nav-dist');
+  distEl.textContent = dist;
+  distEl.hidden = !dist;
+  const nextEl = document.getElementById('nav-next');
+  nextEl.textContent = nextLine;
+  nextEl.hidden = !nextLine;
+  const modeEl = document.getElementById('nav-mode');
+  modeEl.textContent = mode;
+  modeEl.hidden = !mode;
+  document.getElementById('nav-banner').classList.toggle('is-arrived', nav.arrived);
+  document.getElementById('btn-nav-stop').setAttribute('aria-label', nav.arrived ? 'Done' : 'Stop');
+}
+
+function pauseNavCamera() {
+  if (!nav || nav.paused) return;
+  nav.paused = true;
+  document.getElementById('btn-nav-recenter').hidden = false;
+}
+
+function resumeNavCamera() {
+  if (!nav) return;
+  const c = map.getCenter();
+  nav.cam = { lng: c.lng, lat: c.lat, zoom: map.getZoom(), pitch: map.getPitch() };
+  nav.paused = false;
+  document.getElementById('btn-nav-recenter').hidden = true;
+  if (!nav.raf) {
+    nav.last = 0;
+    nav.settle = 0;
+    nav.raf = requestAnimationFrame(navTick);
+  }
 }
 
 function syncRouteSheet() {
@@ -2036,18 +2453,32 @@ function renderSteps() {
   const extra = rides.reduce((sum, step) => sum + (step.mode === 'stair' ? 45 : step.mode === 'elevator' ? 30 : 20), 0);
   const minutes = Math.max(1, Math.round(meters / 1.2 / 60 + extra / 60));
   const via = rides.length ? rides.map((step) => step.mode === 'stair' ? 'stairs' : step.mode).filter((mode, index, list) => list.indexOf(mode) === index).join(' and ') : 'the same floor';
-  summary.innerHTML = '<div class="route-card"><strong>About ' + minutes + ' min</strong><span>' + meters + ' m · ' + esc(state.route.from.name) + ' to ' + esc(state.route.to.name) + '</span><span>By ' + esc(via) + '</span></div>';
-  state.route.steps.forEach((step, index) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'step-btn' + (index === state.step ? ' active' : '');
-    const detail = step.detail ? '<span class="step-k">' + esc(step.detail) + '</span>' : '';
-    btn.innerHTML = '<span class="step-arrow" aria-hidden="true">' + stepIcon(step.action) + '</span>'
-      + '<span class="choice-copy"><strong>' + esc(step.text) + '</strong>' + detail + '</span>';
-    btn.addEventListener('click', () => goToStep(index));
-    host.appendChild(btn);
-  });
+  const ready = scene3d && scene3d.isDone() && !nav;
+  summary.innerHTML = '<div class="route-card"><strong class="route-ready"><span class="step-check">' + checkMark() + '</span>Route ready</strong><span>About ' + minutes + ' min · ' + meters + ' m</span><span>' + esc(state.route.from.name) + ' to ' + esc(state.route.to.name) + '</span><span>By ' + esc(via) + '</span></div>'
+    + '<p class="route-note">' + esc(arrivalNote()) + '</p>'
+    + (ready ? '<button type="button" class="nav-start" id="btn-nav-start"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7L12 2z"/></svg>Start</button>' : '');
+  const start = document.getElementById('btn-nav-start');
+  if (start) start.addEventListener('click', startNav);
   syncRouteSheet();
+}
+
+function arrivalNote() {
+  const dest = state.route.to.name || 'the destination';
+  const moves = state.route.steps.filter((step) => step.kind !== 'arrive');
+  if (!moves.length) return 'Follow the blue line to ' + dest + '.';
+  const bits = moves.map((step) => {
+    if (step.kind === 'transition') {
+      return (step.text || 'Change floors') + (step.level_name ? ' to ' + step.level_name : '');
+    }
+    return (step.text || 'Continue') + (step.detail ? ' for ' + step.detail : '');
+  });
+  const shown = bits.slice(0, 4);
+  const phrase = shown.map((bit, index) => index === 0 ? bit : bit.charAt(0).toLowerCase() + bit.slice(1));
+  let sentence = phrase[0];
+  if (phrase.length === 2) sentence += ', then ' + phrase[1];
+  else if (phrase.length > 2) sentence += ', ' + phrase.slice(1, -1).join(', ') + ', then ' + phrase[phrase.length - 1];
+  if (bits.length > shown.length) return sentence + ', then continue to ' + dest + '.';
+  return sentence + ' to reach ' + dest + '.';
 }
 
 function stepIcon(action) {
@@ -2076,6 +2507,7 @@ function highlightStep(index) {
   document.querySelectorAll('#route-steps .step-btn').forEach((btn, i) => {
     const on = i === index;
     btn.classList.toggle('active', on);
+    btn.classList.toggle('is-done', i < index);
     if (on) btn.scrollIntoView({ block: 'nearest' });
   });
 }
@@ -2130,6 +2562,23 @@ function syncTools() {
   });
 }
 
+function checkMark() {
+  return '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.2 16.2 4.8 11.8l-1.4 1.4L9.2 19 20.6 7.6 19.2 6.2z"/></svg>';
+}
+
+function syncDockTitle() {
+  const el = document.getElementById('dock-title');
+  if (!el) return;
+  if (state.dockOpen && state.dock === 'explore') {
+    const kind = window.IndoorPlaces && IndoorPlaces.KINDS.find((item) => item.id === state.exploreKind);
+    const name = !kind || kind.id === 'all' ? 'Places' : kind.label;
+    const listed = document.querySelectorAll('#explore-list .explore-card').length;
+    el.textContent = listed ? name + ' · ' + listed : name;
+    return;
+  }
+  el.textContent = DOCK_TITLES[state.dock] || 'Indoor';
+}
+
 function openDock(name, keepOpen) {
   const dock = document.getElementById('dock');
   if (state.dockOpen && state.dock === name && !keepOpen) {
@@ -2137,10 +2586,16 @@ function openDock(name, keepOpen) {
     return;
   }
   setToolsOpen(false);
+  const wasOpen = dock.classList.contains('open');
   state.dockOpen = true;
   state.dock = name;
   dock.classList.add('open');
-  document.getElementById('dock-title').textContent = DOCK_TITLES[name] || 'Indoor';
+  if (!wasOpen) {
+    dock.classList.remove('sheet-enter');
+    void dock.offsetWidth;
+    dock.classList.add('sheet-enter');
+  }
+  syncDockTitle();
   document.querySelectorAll('.panel').forEach((panel) => {
     panel.classList.toggle('active', panel.id === 'panel-' + name);
   });
@@ -2148,11 +2603,80 @@ function openDock(name, keepOpen) {
   syncGlass();
 }
 
+function clearSheetSize(dock) {
+  dock.style.height = '';
+  dock.style.maxHeight = '';
+  dock.classList.remove('is-dragging');
+}
+
 function closeDock() {
   state.dockOpen = false;
   setTool(null);
-  document.getElementById('dock').classList.remove('open');
+  const dock = document.getElementById('dock');
+  clearSheetSize(dock);
+  dock.classList.remove('open', 'sheet-enter');
   syncTools();
+}
+
+function bindSheetDrag() {
+  const dock = document.getElementById('dock');
+  const handles = [dock.querySelector('.sheet-grab'), dock.querySelector('.dock-head')].filter(Boolean);
+  let drag = null;
+
+  function sheetMax() {
+    const chrome = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--chrome-bottom')) || 0;
+    return Math.max(180, window.innerHeight - chrome - 16);
+  }
+
+  function onDown(event) {
+    if (!window.matchMedia('(max-width: 900px)').matches) return;
+    if (!dock.classList.contains('open')) return;
+    if (event.button != null && event.button !== 0) return;
+    if (event.target.closest('button, a, input, textarea, select')) return;
+    drag = {
+      id: event.pointerId,
+      y: event.clientY,
+      h: dock.getBoundingClientRect().height
+    };
+    dock.classList.remove('sheet-enter');
+    dock.classList.add('is-dragging');
+    dock.style.maxHeight = sheetMax() + 'px';
+    dock.style.height = drag.h + 'px';
+    try { dock.setPointerCapture(event.pointerId); } catch (e) {}
+    event.preventDefault();
+  }
+
+  function onMove(event) {
+    if (!drag || event.pointerId !== drag.id) return;
+    const next = drag.h - (event.clientY - drag.y);
+    dock.style.height = Math.max(0, Math.min(sheetMax(), next)) + 'px';
+  }
+
+  function onUp(event) {
+    if (!drag || event.pointerId !== drag.id) return;
+    const height = dock.getBoundingClientRect().height;
+    const moved = Math.abs(height - drag.h) > 3;
+    drag = null;
+    dock.classList.remove('is-dragging');
+    if (!moved) {
+      clearSheetSize(dock);
+      return;
+    }
+    if (height < 64) {
+      clearSheetSize(dock);
+      closeDock();
+      return;
+    }
+    dock.style.height = Math.round(height) + 'px';
+  }
+
+  dock.addEventListener('animationend', (event) => {
+    if (event.target === dock) dock.classList.remove('sheet-enter');
+  });
+  handles.forEach((el) => el.addEventListener('pointerdown', onDown));
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+  document.addEventListener('pointercancel', onUp);
 }
 
 function setTiltControls(on) {
@@ -2424,12 +2948,21 @@ function bindMap() {
 
   map.on('dragstart', () => {
     if (scene3d.isPlaying()) state.follow = false;
+    pauseNavCamera();
+  });
+  ['zoomstart', 'rotatestart', 'pitchstart'].forEach((name) => {
+    map.on(name, (event) => {
+      if (event && event.originalEvent) pauseNavCamera();
+    });
   });
 
   map.on('zoom', () => {
     document.getElementById('stat-zoom').textContent = map.getZoom().toFixed(1);
   });
-  map.on('zoomend', refreshLabels);
+  map.on('zoomend', () => {
+    if (scene3d && scene3d.isPlaying()) return;
+    refreshLabels();
+  });
 }
 
 function bindChrome() {
@@ -2437,6 +2970,7 @@ function bindChrome() {
     btn.addEventListener('click', () => openDock(btn.dataset.dock));
   });
   document.getElementById('btn-close-dock').addEventListener('click', closeDock);
+  bindSheetDrag();
   document.getElementById('btn-more').addEventListener('click', () => {
     const opening = !document.body.classList.contains('tools-open');
     if (opening) closeDock();
@@ -2444,6 +2978,7 @@ function bindChrome() {
   });
   window.addEventListener('resize', () => {
     if (window.innerWidth > 640 && document.body.classList.contains('tools-open')) setToolsOpen(false);
+    if (window.innerWidth > 900) clearSheetSize(document.getElementById('dock'));
   });
   document.getElementById('tool-sheet').addEventListener('click', (event) => {
     const button = event.target.closest('button');
@@ -2504,11 +3039,43 @@ function bindChrome() {
   document.getElementById('btn-pano-clear').addEventListener('click', closePano);
   document.getElementById('search-input').addEventListener('input', (event) => onSearch(event.target.value));
   document.getElementById('explore-search').addEventListener('input', renderExplore);
-  document.getElementById('explore-kinds').addEventListener('click', (event) => {
+  document.getElementById('filter-bar').addEventListener('click', (event) => {
     const btn = event.target.closest('[data-kind]');
-    if (!btn) return;
-    state.exploreKind = btn.dataset.kind;
+    if (!btn || btn.id === 'filter-more') return;
+    state.exploreKind = state.exploreKind === btn.dataset.kind ? 'all' : btn.dataset.kind;
+    const extra = document.getElementById('filter-extra');
+    const more = document.getElementById('filter-more');
+    if (extra) extra.hidden = true;
+    if (more) more.setAttribute('aria-expanded', 'false');
     renderExplore();
+  });
+  document.getElementById('filter-more').addEventListener('click', () => {
+    const extra = document.getElementById('filter-extra');
+    const more = document.getElementById('filter-more');
+    const open = extra.hidden;
+    extra.hidden = !open;
+    more.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.getElementById('filter-count').addEventListener('click', () => openDock('explore', true));
+  document.getElementById('filter-toggle').addEventListener('click', () => {
+    const bar = document.getElementById('filter-bar');
+    const toggle = document.getElementById('filter-toggle');
+    const collapsed = !bar.classList.contains('is-collapsed');
+    bar.classList.toggle('is-collapsed', collapsed);
+    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    toggle.setAttribute('aria-label', collapsed ? 'Show filters' : 'Hide filters');
+    if (collapsed) {
+      const extra = document.getElementById('filter-extra');
+      if (extra) extra.hidden = true;
+      document.getElementById('filter-more').setAttribute('aria-expanded', 'false');
+    }
+  });
+  document.addEventListener('click', (event) => {
+    const wrap = document.getElementById('filter-extra-wrap');
+    const extra = document.getElementById('filter-extra');
+    if (!wrap || !extra || extra.hidden || wrap.contains(event.target)) return;
+    extra.hidden = true;
+    document.getElementById('filter-more').setAttribute('aria-expanded', 'false');
   });
   document.querySelectorAll('[data-scope]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -2558,6 +3125,8 @@ function bindChrome() {
     syncEndpointUi('to');
     maybeRoute();
   });
+  document.getElementById('btn-nav-stop').addEventListener('click', () => stopNav(true));
+  document.getElementById('btn-nav-recenter').addEventListener('click', resumeNavCamera);
   document.getElementById('btn-replay').addEventListener('click', () => {
     if (!state.route) {
       IndoorUI.toast('Get directions first.');
@@ -2919,9 +3488,6 @@ function startMap(style) {
     labelHost: document.getElementById('label-layer'),
     onLevel: (levelId) => {
       setFloor(levelId, false);
-      if (!scene3d.isPlaying() || reducedMotion()) return;
-      const left = Math.max(900, DRAW_MS - (performance.now() - routeStarted));
-      frameRoute(levelId, left);
     },
     onStep: (index) => {
       highlightStep(index);
@@ -2932,7 +3498,12 @@ function startMap(style) {
     onMove: followCamera,
     onDone: (info) => {
       hideRideCaption();
-      if (!info.skipped && state.route) IndoorUI.toast('Arrived at ' + state.route.to.name);
+      if (!state.route) return;
+      renderSteps();
+      if (!info.skipped) {
+        frameRouteExtent();
+        IndoorUI.toast('Arrived at ' + state.route.to.name);
+      }
     }
   });
 
