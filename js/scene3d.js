@@ -299,12 +299,21 @@ export function createScene3D(map, options) {
       gl.depthMask(true);
       gl.clear(gl.DEPTH_BUFFER_BIT);
       renderer.setViewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
-      renderer.render(scene, camera);
-      placeLabels();
-      paintRouteOverlay();
+      if (planShown) {
+        renderer.render(scene, camera);
+        placeLabels();
+        paintRouteOverlay();
+      }
       paintUserOverlay();
     }
   };
+
+  let planShown = true;
+
+  function setPlanVisible(on) {
+    planShown = !!on;
+    map.triggerRepaint();
+  }
 
   let originAlt = 0;
 
@@ -1974,6 +1983,7 @@ export function createScene3D(map, options) {
     clearRoute,
     setDraft,
     setUser,
+    setPlanVisible,
     reset,
     play,
     pause,

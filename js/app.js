@@ -1833,11 +1833,11 @@ function gpsHit(lngLat) {
 function paintUser() {
   if (!scene3d || nav) return;
   const hit = deviceFix ? gpsHit(deviceFix.lngLat) : null;
-  if (!deviceFix || !hit || state.hereHidden) {
+  if (!deviceFix || state.hereHidden) {
     scene3d.setUser(null);
     return;
   }
-  scene3d.setUser(deviceFix.lngLat, levelElev(hit.floor.id), deviceFix.heading);
+  scene3d.setUser(deviceFix.lngLat, hit ? levelElev(hit.floor.id) : 0, deviceFix.heading);
 }
 
 function placeDevice() {
@@ -1898,6 +1898,7 @@ function onLocate(pos) {
     accuracy: pos.coords.accuracy,
     speed: pos.coords.speed
   };
+  syncFollowButton();
   if (nav) {
     navGps();
     return;
@@ -1951,6 +1952,7 @@ function stopDeviceTrack() {
   if (deviceWatch != null && navigator.geolocation) navigator.geolocation.clearWatch(deviceWatch);
   deviceWatch = null;
   deviceFix = null;
+  syncFollowButton();
   if (scene3d) scene3d.setUser(null);
 }
 
@@ -2051,12 +2053,12 @@ function routeViewBox() {
     const rect = filter.getBoundingClientRect();
     top = Math.max(top, rect.bottom - mapRect.top + 24);
   }
-  if (dock && dock.classList.contains('open')) {
+  if (dock && dock.classList.contains('open') && dock.offsetHeight) {
     const rect = dock.getBoundingClientRect();
     if (window.innerWidth <= 900) bottom = Math.min(bottom, rect.top - mapRect.top - 16);
     else left = Math.max(left, rect.right - mapRect.left + 24);
   }
-  if (toolbar) {
+  if (toolbar && toolbar.offsetHeight) {
     const rect = toolbar.getBoundingClientRect();
     bottom = Math.min(bottom, rect.top - mapRect.top - 12);
   }
@@ -2143,6 +2145,7 @@ const NAV_PITCH = 55;
 const NAV_ZOOM = 20.6;
 const NAV_MAX_ACC = 60;
 const NAV_MIN_MOVE = 1.2;
+const NAV_STALE_MS = 8000;
 
 function navPieces(route) {
   const pieces = [];
@@ -2274,6 +2277,45 @@ function startNav() {
     navGps();
     nav.d = nav.target;
   }
+  showNavChrome();
+}
+
+function startFollow() {
+  if (!spatial || !map) return;
+  if (!deviceFix) {
+    IndoorUI.toast('Waiting for your location…');
+    return;
+  }
+  stopNav(false);
+  const c = map.getCenter();
+  nav = {
+    pieces: [],
+    total: 0,
+    mode: 'gps',
+    free: true,
+    fromPhone: true,
+    d: 0,
+    target: 0,
+    level: null,
+    paused: false,
+    lost: false,
+    arrived: false,
+    bearing: (map.getBearing() + 360) % 360,
+    cam: { lng: c.lng, lat: c.lat, zoom: map.getZoom(), pitch: map.getPitch() },
+    last: 0,
+    raf: 0,
+    key: ''
+  };
+  navGps();
+  showNavChrome();
+}
+
+function syncFollowButton() {
+  const btn = document.getElementById('btn-follow');
+  if (btn) btn.hidden = !!nav || !deviceFix;
+}
+
+function showNavChrome() {
   if (state.tool) setTool(null);
   if (window.innerWidth <= 900) closeDock();
   hideRideCaption();
@@ -2281,6 +2323,7 @@ function startNav() {
   document.getElementById('nav-banner').hidden = false;
   document.getElementById('btn-nav-recenter').hidden = true;
   document.body.classList.add('is-navigating');
+  syncFollowButton();
   renderSteps();
   nav.raf = requestAnimationFrame(navTick);
 }
@@ -2288,12 +2331,14 @@ function startNav() {
 function stopNav(reframe) {
   if (!nav) return;
   if (nav.raf) cancelAnimationFrame(nav.raf);
+  const free = nav.free;
   nav = null;
   document.getElementById('nav-banner').hidden = true;
   document.body.classList.remove('is-navigating');
+  syncFollowButton();
   paintUser();
   if (!map) return;
-  if (reframe && state.route) {
+  if (reframe && state.route && !free) {
     openDock('directions', true);
     renderSteps();
     frameRouteExtent(undefined, true);
@@ -2305,11 +2350,14 @@ function stopNav(reframe) {
 function navGps() {
   if (!nav || nav.mode !== 'gps' || !deviceFix) return;
   const hit = gpsHit(deviceFix.lngLat);
-  nav.lost = !hit;
-  if (!hit) return;
+  nav.lost = !hit && !nav.free;
+  if (nav.lost) return;
   const acc = deviceFix.accuracy;
   if (Number.isFinite(acc)) nav.accuracy = acc;
-  if (nav.raw && Number.isFinite(acc) && acc > NAV_MAX_ACC) return;
+  const now = performance.now();
+  const stale = !nav.rawAt || now - nav.rawAt > NAV_STALE_MS;
+  if (nav.raw && Number.isFinite(acc) && acc > NAV_MAX_ACC && !stale) return;
+  nav.rawAt = now;
   const m = spatial.toMeters(deviceFix.lngLat[0], deviceFix.lngLat[1]);
   if (nav.raw) {
     const dx = m[0] - nav.raw.x;
@@ -2322,8 +2370,9 @@ function navGps() {
     nav.moving = true;
     if (Math.hypot(dx, dy) > 0.5) nav.walkHeading = Math.atan2(dx, dy) * 180 / Math.PI;
   }
-  nav.raw = { x: m[0], y: m[1], level: hit.floor.id };
+  nav.raw = { x: m[0], y: m[1], level: hit ? hit.floor.id : null };
   if (!nav.shown) nav.shown = { x: m[0], y: m[1] };
+  if (nav.free) return;
   const snap = navSnap(deviceFix.lngLat, hit.floor.id);
   if (snap) nav.target = snap.d;
 }
@@ -2339,33 +2388,44 @@ function navTick(now) {
   } else {
     nav.d += (nav.target - nav.d) * Math.min(1, dt * 4);
   }
-  const pt = navPoint(nav.d);
+  if (nav.free && !nav.raw) {
+    paintFollowBanner();
+    nav.raf = requestAnimationFrame(navTick);
+    return;
+  }
+  const pt = nav.free ? null : navPoint(nav.d);
   const raw = nav.mode === 'gps' && nav.raw;
   const level = raw ? nav.raw.level : pt.level;
-  if (level !== nav.level) {
+  if (level != null && level !== nav.level) {
     nav.level = level;
     if (level !== state.levelId) setFloor(level, false);
   }
-  let head = pt.heading;
+  nav.outside = level == null;
+  let head = pt ? pt.heading : null;
   if (nav.mode === 'gps') {
     const phone = deviceFix && Number.isFinite(deviceFix.heading) ? deviceFix.heading : null;
     head = phone != null ? phone : (nav.moving && nav.walkHeading != null ? nav.walkHeading : null);
   }
   if (head != null) nav.bearing = turnToward(nav.bearing, (head + 360) % 360, Math.min(1, dt * 2));
-  let x = pt.x;
-  let y = pt.y;
-  let elev = pt.elev;
+  let x = pt ? pt.x : 0;
+  let y = pt ? pt.y : 0;
+  let elev = pt ? pt.elev : 0;
   if (raw) {
     const k = Math.min(1, dt * 2.5);
     nav.shown.x += (nav.raw.x - nav.shown.x) * k;
     nav.shown.y += (nav.raw.y - nav.shown.y) * k;
     x = nav.shown.x;
     y = nav.shown.y;
-    elev = levelElev(level);
+    elev = level != null ? levelElev(level) : 0;
   }
   const lngLat = spatial.toLonLat(x, y);
   scene3d.setUser(lngLat, elev, nav.bearing);
   if (!nav.paused) navCamera(lngLat, elev, dt);
+  if (nav.free) {
+    paintFollowBanner();
+    nav.raf = requestAnimationFrame(navTick);
+    return;
+  }
   if (!nav.arrived && nav.d >= nav.total - (nav.mode === 'gps' ? 3 : 0.05)) {
     nav.arrived = true;
     IndoorUI.toast('Arrived at ' + state.route.to.name);
@@ -2447,6 +2507,28 @@ function paintNavBanner(pt) {
   modeEl.hidden = !mode;
   document.getElementById('nav-banner').classList.toggle('is-arrived', nav.arrived);
   document.getElementById('btn-nav-stop').setAttribute('aria-label', nav.arrived ? 'Done' : 'Stop');
+}
+
+function paintFollowBanner() {
+  const floor = floors.find((f) => f.id === nav.level);
+  let mode = '';
+  if (nav.lost || !nav.raw) mode = 'Looking for your location…';
+  else if (Number.isFinite(nav.accuracy)) mode = 'GPS accuracy about ' + Math.round(nav.accuracy) + ' m' + (nav.accuracy > NAV_MAX_ACC ? ', waiting for a better fix' : '');
+  const where = nav.outside ? 'Outside the building' : (floor ? 'On ' + floor.name : '');
+  const key = ['follow', where, mode, nav.paused].join('|');
+  if (key === nav.key) return;
+  nav.key = key;
+  document.getElementById('nav-icon').innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7L12 2z"/></svg>';
+  document.getElementById('nav-text').textContent = 'Following your location';
+  document.getElementById('nav-dist').hidden = true;
+  const nextEl = document.getElementById('nav-next');
+  nextEl.textContent = where;
+  nextEl.hidden = !where;
+  const modeEl = document.getElementById('nav-mode');
+  modeEl.textContent = mode;
+  modeEl.hidden = !mode;
+  document.getElementById('nav-banner').classList.remove('is-arrived');
+  document.getElementById('btn-nav-stop').setAttribute('aria-label', 'Stop following');
 }
 
 function pauseNavCamera() {
@@ -3170,6 +3252,15 @@ function bindChrome() {
   });
   document.getElementById('btn-nav-stop').addEventListener('click', () => stopNav(true));
   document.getElementById('btn-nav-recenter').addEventListener('click', resumeNavCamera);
+  document.getElementById('btn-follow').addEventListener('click', startFollow);
+  document.getElementById('btn-clean').addEventListener('click', (event) => {
+    const on = document.body.classList.toggle('is-clean');
+    if (scene3d) scene3d.setPlanVisible(!on);
+    const btn = event.currentTarget;
+    btn.setAttribute('aria-pressed', String(on));
+    btn.setAttribute('aria-label', on ? 'Show map layers' : 'Hide map layers');
+    btn.title = btn.getAttribute('aria-label');
+  });
   document.getElementById('btn-replay').addEventListener('click', () => {
     if (!state.route) {
       IndoorUI.toast('Get directions first.');
