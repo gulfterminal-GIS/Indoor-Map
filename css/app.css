@@ -1713,6 +1713,16 @@ body.is-navigating #filter-toggle { display: none; }
 
 #endpoint-labels { z-index: 3; }
 
+#user-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 #route-overlay {
   position: absolute;
   inset: 0;

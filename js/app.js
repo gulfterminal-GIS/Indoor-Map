@@ -2051,7 +2051,8 @@ function routeViewBox() {
   }
   if (dock && dock.classList.contains('open')) {
     const rect = dock.getBoundingClientRect();
-    bottom = Math.min(bottom, rect.top - mapRect.top - 16);
+    if (window.innerWidth <= 900) bottom = Math.min(bottom, rect.top - mapRect.top - 16);
+    else left = Math.max(left, rect.right - mapRect.left + 24);
   }
   if (toolbar) {
     const rect = toolbar.getBoundingClientRect();
@@ -2344,8 +2345,9 @@ function navCamera(lngLat, elev, dt) {
   cam.pitch += (NAV_PITCH - cam.pitch) * k;
   const lat = spatial.origin.lat * Math.PI / 180;
   const mpp = 156543.03392 * Math.cos(lat) / Math.pow(2, cam.zoom);
-  const height = map.getCanvas().clientHeight || window.innerHeight;
-  const ahead = mpp * height * 0.2 / Math.cos(cam.pitch * Math.PI / 180);
+  const box = routeViewBox();
+  const lift = (box.top + box.bottom) / 2 - box.height / 2;
+  const ahead = mpp * lift / Math.cos(cam.pitch * Math.PI / 180);
   const b = nav.bearing * Math.PI / 180;
   const front = [lngLat[0] + (ahead * Math.sin(b)) / spatial.lonScale, lngLat[1] + (ahead * Math.cos(b)) / spatial.latScale];
   const target = cameraCenter(front, elev, cam.pitch, nav.bearing);

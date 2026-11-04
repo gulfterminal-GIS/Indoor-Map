@@ -302,6 +302,7 @@ export function createScene3D(map, options) {
       renderer.render(scene, camera);
       placeLabels();
       paintRouteOverlay();
+      paintUserOverlay();
     }
   };
 
@@ -443,6 +444,50 @@ export function createScene3D(map, options) {
         routeArrows.appendChild(mark);
       });
     });
+  }
+
+  let userSvg = null;
+  let userHeading = null;
+
+  function svgNode(name, attrs) {
+    const node = document.createElementNS('http://www.w3.org/2000/svg', name);
+    Object.keys(attrs).forEach((key) => node.setAttribute(key, attrs[key]));
+    return node;
+  }
+
+  function paintUserOverlay() {
+    if (!userSvg) userSvg = document.getElementById('user-overlay');
+    if (!userSvg) return;
+    userSvg.textContent = '';
+    if (!userMark || !userMark.visible) return;
+    const canvas = map.getCanvas();
+    userSvg.setAttribute('viewBox', '0 0 ' + canvas.clientWidth + ' ' + canvas.clientHeight);
+    const p = userMark.position;
+    const spot = projectScene(p.x, p.y, p.z);
+    if (!spot) return;
+    const cx = spot[0];
+    const cy = spot[1];
+    if (typeof userHeading === 'number' && isFinite(userHeading)) {
+      const rad = userHeading * Math.PI / 180;
+      const ahead = projectScene(p.x + Math.sin(rad) * 0.6, p.y + Math.cos(rad) * 0.6, p.z);
+      if (ahead) {
+        const ang = Math.atan2(ahead[1] - cy, ahead[0] - cx);
+        const reach = 46;
+        const spread = 0.5;
+        const ax = cx + Math.cos(ang - spread) * reach;
+        const ay = cy + Math.sin(ang - spread) * reach;
+        const bx = cx + Math.cos(ang + spread) * reach;
+        const by = cy + Math.sin(ang + spread) * reach;
+        userSvg.appendChild(svgNode('path', {
+          d: 'M' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' L' + ax.toFixed(1) + ' ' + ay.toFixed(1)
+            + ' A' + reach + ' ' + reach + ' 0 0 1 ' + bx.toFixed(1) + ' ' + by.toFixed(1) + ' Z',
+          fill: 'rgba(26, 115, 232, 0.28)'
+        }));
+      }
+    }
+    userSvg.appendChild(svgNode('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: 22, fill: 'rgba(26, 115, 232, 0.16)' }));
+    userSvg.appendChild(svgNode('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: 12, fill: '#ffffff', style: 'filter: drop-shadow(0 1px 3px rgba(15, 30, 50, 0.45))' }));
+    userSvg.appendChild(svgNode('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: 8.5, fill: '#1A73E8' }));
   }
 
   function paintRoutePins() {
@@ -1510,6 +1555,9 @@ export function createScene3D(map, options) {
     arrow.position.z = 0.08;
     arrow.renderOrder = 11;
     arrow.name = 'heading';
+    halo.visible = false;
+    dot.visible = false;
+    arrow.layers.disable(0);
     userMark.add(halo, dot, arrow);
     userGroup.add(userMark);
     return userMark;
@@ -1620,6 +1668,7 @@ export function createScene3D(map, options) {
     marker.position.set(xy[0], xy[1], z + PIN_Z + 0.12);
     const arrow = marker.getObjectByName('heading');
     const aimed = typeof heading === 'number' && isFinite(heading);
+    userHeading = aimed ? heading : null;
     if (arrow) arrow.visible = aimed;
     if (aimed) {
       const rad = heading * Math.PI / 180;
