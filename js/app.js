@@ -2141,8 +2141,8 @@ const NAV_SPEED = 1.2;
 const NAV_RIDE_M = 6;
 const NAV_PITCH = 55;
 const NAV_ZOOM = 20.6;
-const NAV_MAX_ACC = 15;
-const NAV_MIN_MOVE = 2.5;
+const NAV_MAX_ACC = 60;
+const NAV_MIN_MOVE = 1.2;
 
 function navPieces(route) {
   const pieces = [];
@@ -2249,12 +2249,15 @@ function startNav() {
     return;
   }
   stopNav(false);
-  const hit = deviceFix ? gpsHit(deviceFix.lngLat) : null;
+  const ends = state.endpoints;
+  const fromPhone = [ends.from, ends.to].some((ep) => ep && ep.source === 'gps');
+  const hit = fromPhone && deviceFix ? gpsHit(deviceFix.lngLat) : null;
   const c = map.getCenter();
   nav = {
     pieces: built.pieces,
     total: built.total,
     mode: hit ? 'gps' : 'preview',
+    fromPhone: fromPhone,
     d: 0,
     target: 0,
     level: null,
@@ -2346,14 +2349,14 @@ function navTick(now) {
   let head = pt.heading;
   if (nav.mode === 'gps') {
     const phone = deviceFix && Number.isFinite(deviceFix.heading) ? deviceFix.heading : null;
-    head = nav.moving ? (phone != null ? phone : (nav.walkHeading != null ? nav.walkHeading : null)) : null;
+    head = phone != null ? phone : (nav.moving && nav.walkHeading != null ? nav.walkHeading : null);
   }
   if (head != null) nav.bearing = turnToward(nav.bearing, (head + 360) % 360, Math.min(1, dt * 2));
   let x = pt.x;
   let y = pt.y;
   let elev = pt.elev;
   if (raw) {
-    const k = Math.min(1, dt * 1.5);
+    const k = Math.min(1, dt * 2.5);
     nav.shown.x += (nav.raw.x - nav.shown.x) * k;
     nav.shown.y += (nav.raw.y - nav.shown.y) * k;
     x = nav.shown.x;
@@ -2424,7 +2427,7 @@ function paintNavBanner(pt) {
     next = steps[index + 2];
   }
   let mode = '';
-  if (nav.mode === 'preview') mode = 'Preview. Your phone is not in this building.';
+  if (nav.mode === 'preview') mode = nav.fromPhone ? 'Preview. Your phone is not in this building.' : 'Preview of the route.';
   else if (nav.lost) mode = 'Looking for your location…';
   else if (Number.isFinite(nav.accuracy)) mode = 'GPS accuracy about ' + Math.round(nav.accuracy) + ' m' + (nav.accuracy > NAV_MAX_ACC ? ', waiting for a better fix' : '');
   const nextLine = next && !nav.arrived ? 'Then ' + navLine(next).charAt(0).toLowerCase() + navLine(next).slice(1) : '';
