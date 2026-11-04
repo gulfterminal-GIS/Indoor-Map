@@ -2148,6 +2148,7 @@ const NAV_MIN_MOVE = 1.2;
 const NAV_STALE_MS = 8000;
 const NAV_PREDICT_S = 1.5;
 const NAV_MAX_SPEED = 40;
+const NAV_TRAIL_STEP = 0.5;
 
 let compass = null;
 let compassOn = false;
@@ -2365,7 +2366,10 @@ function stopNav(reframe) {
   if (!nav) return;
   if (nav.raf) cancelAnimationFrame(nav.raf);
   const free = nav.free;
+  const walked = nav.walked || 0;
   nav = null;
+  if (scene3d) scene3d.clearWalkTrail();
+  if (reframe && walked >= 1) IndoorUI.toast('You walked ' + walkedText(walked));
   document.getElementById('nav-banner').hidden = true;
   document.body.classList.remove('is-navigating');
   syncFollowButton();
@@ -2483,6 +2487,7 @@ function navTick(now) {
     elev = level != null ? levelElev(level) : 0;
   }
   const lngLat = spatial.toLonLat(x, y);
+  if (raw) recordWalk(x, y, lngLat, elev);
   scene3d.setUser(lngLat, elev, nav.bearing, raw ? nav.accuracy : undefined);
   if (!nav.paused) navCamera(lngLat, elev, dt);
   if (nav.free) {
@@ -2500,6 +2505,22 @@ function navTick(now) {
     if (nav.settle > 1.2) return;
   }
   nav.raf = requestAnimationFrame(navTick);
+}
+
+function recordWalk(x, y, lngLat, elev) {
+  const last = nav.trailLast;
+  if (last) {
+    const step = Math.hypot(x - last.x, y - last.y);
+    if (step < NAV_TRAIL_STEP) return;
+    nav.walked = (nav.walked || 0) + step;
+  }
+  nav.trailLast = { x: x, y: y };
+  scene3d.addWalkPoint(lngLat, elev);
+}
+
+function walkedText(meters) {
+  const m = meters || 0;
+  return m >= 1000 ? (m / 1000).toFixed(2) + ' km' : Math.round(m) + ' m';
 }
 
 function navCamera(lngLat, elev, dt) {
@@ -2555,6 +2576,7 @@ function paintNavBanner(pt) {
   if (nav.mode === 'preview') mode = nav.fromPhone ? 'Preview. Your phone is not in this building.' : 'Preview of the route.';
   else if (nav.lost) mode = 'Looking for your location…';
   else if (Number.isFinite(nav.accuracy)) mode = 'GPS accuracy about ' + Math.round(nav.accuracy) + ' m' + (nav.accuracy > NAV_MAX_ACC ? ', waiting for a better fix' : '');
+  if (nav.mode === 'gps' && nav.raw) mode += (mode ? ' · ' : '') + 'Walked ' + walkedText(nav.walked);
   const nextLine = next && !nav.arrived ? 'Then ' + navLine(next).charAt(0).toLowerCase() + navLine(next).slice(1) : '';
   const key = [main.action, main.line, dist, nextLine, mode, nav.paused].join('|');
   if (key === nav.key) return;
@@ -2580,12 +2602,15 @@ function paintFollowBanner() {
   if (nav.lost || !nav.raw) mode = 'Looking for your location…';
   else if (Number.isFinite(nav.accuracy)) mode = 'GPS accuracy about ' + Math.round(nav.accuracy) + ' m' + (nav.accuracy > NAV_MAX_ACC ? ', waiting for a better fix' : '');
   const where = nav.outside ? 'Outside the building' : (floor ? 'On ' + floor.name : '');
-  const key = ['follow', where, mode, nav.paused].join('|');
+  const walked = 'Walked ' + walkedText(nav.walked);
+  const key = ['follow', where, mode, walked, nav.paused].join('|');
   if (key === nav.key) return;
   nav.key = key;
   document.getElementById('nav-icon').innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7L12 2z"/></svg>';
   document.getElementById('nav-text').textContent = 'Following your location';
-  document.getElementById('nav-dist').hidden = true;
+  const distEl = document.getElementById('nav-dist');
+  distEl.textContent = walked;
+  distEl.hidden = false;
   const nextEl = document.getElementById('nav-next');
   nextEl.textContent = where;
   nextEl.hidden = !where;

@@ -465,13 +465,62 @@ export function createScene3D(map, options) {
     return node;
   }
 
+  let walkTrail = [];
+
+  function addWalkPoint(lngLat, elev) {
+    const xy = toScene(lngLat);
+    walkTrail.push([xy[0], xy[1], (elev || 0) + PIN_Z]);
+    map.triggerRepaint();
+  }
+
+  function clearWalkTrail() {
+    walkTrail = [];
+    map.triggerRepaint();
+  }
+
+  function paintWalkTrail() {
+    if (walkTrail.length < 2) return;
+    let d = '';
+    let open = false;
+    walkTrail.forEach((pt) => {
+      const spot = projectScene(pt[0], pt[1], pt[2]);
+      if (!spot) {
+        open = false;
+        return;
+      }
+      d += (open ? ' L' : ' M') + spot[0].toFixed(1) + ' ' + spot[1].toFixed(1);
+      open = true;
+    });
+    if (!d) return;
+    userSvg.appendChild(svgNode('path', {
+      d: d,
+      fill: 'none',
+      stroke: '#ffffff',
+      'stroke-width': 7,
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+      'stroke-dasharray': '2 12',
+      opacity: 0.9
+    }));
+    userSvg.appendChild(svgNode('path', {
+      d: d,
+      fill: 'none',
+      stroke: '#1A73E8',
+      'stroke-width': 4,
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+      'stroke-dasharray': '2 12'
+    }));
+  }
+
   function paintUserOverlay() {
     if (!userSvg) userSvg = document.getElementById('user-overlay');
     if (!userSvg) return;
     userSvg.textContent = '';
-    if (!userMark || !userMark.visible) return;
     const canvas = map.getCanvas();
     userSvg.setAttribute('viewBox', '0 0 ' + canvas.clientWidth + ' ' + canvas.clientHeight);
+    paintWalkTrail();
+    if (!userMark || !userMark.visible) return;
     const p = userMark.position;
     const spot = projectScene(p.x, p.y, p.z);
     if (!spot) return;
@@ -1994,6 +2043,8 @@ export function createScene3D(map, options) {
     setDraft,
     setUser,
     setPlanVisible,
+    addWalkPoint,
+    clearWalkTrail,
     reset,
     play,
     pause,
