@@ -2149,6 +2149,7 @@ const NAV_STALE_MS = 8000;
 const NAV_PREDICT_S = 1.5;
 const NAV_MAX_SPEED = 40;
 const NAV_TRAIL_STEP = 0.5;
+const NAV_SNAP_M = 15;
 
 let compass = null;
 let compassOn = false;
@@ -2451,7 +2452,7 @@ function navTick(now) {
     nav.raf = requestAnimationFrame(navTick);
     return;
   }
-  const pt = nav.free ? null : navPoint(nav.d);
+  let pt = nav.free ? null : navPoint(nav.d);
   const raw = nav.mode === 'gps' && nav.raw;
   const level = raw ? nav.raw.level : pt.level;
   if (level != null && level !== nav.level) {
@@ -2485,6 +2486,17 @@ function navTick(now) {
     x = nav.shown.x;
     y = nav.shown.y;
     elev = level != null ? levelElev(level) : 0;
+    if (!nav.free) {
+      const snap = navSnap(spatial.toLonLat(x, y), level);
+      nav.onRoute = !!snap && snap.gap <= NAV_SNAP_M;
+      if (nav.onRoute) {
+        nav.d = snap.d;
+        pt = navPoint(nav.d);
+        x = pt.x;
+        y = pt.y;
+        elev = pt.elev;
+      }
+    }
   }
   const lngLat = spatial.toLonLat(x, y);
   if (raw) recordWalk(x, y, lngLat, elev);
@@ -2576,6 +2588,7 @@ function paintNavBanner(pt) {
   if (nav.mode === 'preview') mode = nav.fromPhone ? 'Preview. Your phone is not in this building.' : 'Preview of the route.';
   else if (nav.lost) mode = 'Looking for your location…';
   else if (Number.isFinite(nav.accuracy)) mode = 'GPS accuracy about ' + Math.round(nav.accuracy) + ' m' + (nav.accuracy > NAV_MAX_ACC ? ', waiting for a better fix' : '');
+  if (nav.mode === 'gps' && nav.raw && !nav.onRoute) mode = 'You are off the route' + (mode ? ' · ' + mode : '');
   if (nav.mode === 'gps' && nav.raw) mode += (mode ? ' · ' : '') + 'Walked ' + walkedText(nav.walked);
   const nextLine = next && !nav.arrived ? 'Then ' + navLine(next).charAt(0).toLowerCase() + navLine(next).slice(1) : '';
   const key = [main.action, main.line, dist, nextLine, mode, nav.paused].join('|');
