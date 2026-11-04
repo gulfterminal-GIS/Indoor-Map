@@ -1894,7 +1894,9 @@ function askDestination() {
 function onLocate(pos) {
   deviceFix = {
     lngLat: [pos.coords.longitude, pos.coords.latitude],
-    heading: pos.coords.heading
+    heading: pos.coords.heading,
+    accuracy: pos.coords.accuracy,
+    speed: pos.coords.speed
   };
   if (nav) {
     navGps();
@@ -2139,6 +2141,8 @@ const NAV_SPEED = 1.2;
 const NAV_RIDE_M = 6;
 const NAV_PITCH = 55;
 const NAV_ZOOM = 20.6;
+const NAV_MAX_ACC = 15;
+const NAV_MIN_MOVE = 2.5;
 
 function navPieces(route) {
   const pieces = [];
@@ -2264,8 +2268,8 @@ function startNav() {
     key: ''
   };
   if (hit) {
-    const snap = navSnap(deviceFix.lngLat, hit.floor.id);
-    if (snap) nav.d = nav.target = snap.d;
+    navGps();
+    nav.d = nav.target;
   }
   if (state.tool) setTool(null);
   if (window.innerWidth <= 900) closeDock();
@@ -2300,6 +2304,23 @@ function navGps() {
   const hit = gpsHit(deviceFix.lngLat);
   nav.lost = !hit;
   if (!hit) return;
+  const acc = deviceFix.accuracy;
+  if (Number.isFinite(acc)) nav.accuracy = acc;
+  if (nav.raw && Number.isFinite(acc) && acc > NAV_MAX_ACC) return;
+  const m = spatial.toMeters(deviceFix.lngLat[0], deviceFix.lngLat[1]);
+  if (nav.raw) {
+    const dx = m[0] - nav.raw.x;
+    const dy = m[1] - nav.raw.y;
+    const walking = Number.isFinite(deviceFix.speed) && deviceFix.speed > 0.5;
+    if (Math.hypot(dx, dy) < NAV_MIN_MOVE && !walking) {
+      nav.moving = false;
+      return;
+    }
+    nav.moving = true;
+    if (Math.hypot(dx, dy) > 0.5) nav.walkHeading = Math.atan2(dx, dy) * 180 / Math.PI;
+  }
+  nav.raw = { x: m[0], y: m[1], level: hit.floor.id };
+  if (!nav.shown) nav.shown = { x: m[0], y: m[1] };
   const snap = navSnap(deviceFix.lngLat, hit.floor.id);
   if (snap) nav.target = snap.d;
 }
@@ -2316,16 +2337,32 @@ function navTick(now) {
     nav.d += (nav.target - nav.d) * Math.min(1, dt * 4);
   }
   const pt = navPoint(nav.d);
-  if (pt.level !== nav.level) {
-    nav.level = pt.level;
-    if (pt.level !== state.levelId) setFloor(pt.level, false);
+  const raw = nav.mode === 'gps' && nav.raw;
+  const level = raw ? nav.raw.level : pt.level;
+  if (level !== nav.level) {
+    nav.level = level;
+    if (level !== state.levelId) setFloor(level, false);
   }
-  const phone = nav.mode === 'gps' && deviceFix && typeof deviceFix.heading === 'number' && isFinite(deviceFix.heading) ? deviceFix.heading : null;
-  const head = phone != null ? phone : pt.heading;
-  if (head != null) nav.bearing = turnToward(nav.bearing, (head + 360) % 360, Math.min(1, dt * 3));
-  const lngLat = spatial.toLonLat(pt.x, pt.y);
-  scene3d.setUser(lngLat, pt.elev, nav.bearing);
-  if (!nav.paused) navCamera(lngLat, pt.elev, dt);
+  let head = pt.heading;
+  if (nav.mode === 'gps') {
+    const phone = deviceFix && Number.isFinite(deviceFix.heading) ? deviceFix.heading : null;
+    head = nav.moving ? (phone != null ? phone : (nav.walkHeading != null ? nav.walkHeading : null)) : null;
+  }
+  if (head != null) nav.bearing = turnToward(nav.bearing, (head + 360) % 360, Math.min(1, dt * 2));
+  let x = pt.x;
+  let y = pt.y;
+  let elev = pt.elev;
+  if (raw) {
+    const k = Math.min(1, dt * 1.5);
+    nav.shown.x += (nav.raw.x - nav.shown.x) * k;
+    nav.shown.y += (nav.raw.y - nav.shown.y) * k;
+    x = nav.shown.x;
+    y = nav.shown.y;
+    elev = levelElev(level);
+  }
+  const lngLat = spatial.toLonLat(x, y);
+  scene3d.setUser(lngLat, elev, nav.bearing);
+  if (!nav.paused) navCamera(lngLat, elev, dt);
   if (!nav.arrived && nav.d >= nav.total - (nav.mode === 'gps' ? 3 : 0.05)) {
     nav.arrived = true;
     IndoorUI.toast('Arrived at ' + state.route.to.name);
@@ -2389,6 +2426,7 @@ function paintNavBanner(pt) {
   let mode = '';
   if (nav.mode === 'preview') mode = 'Preview. Your phone is not in this building.';
   else if (nav.lost) mode = 'Looking for your location…';
+  else if (Number.isFinite(nav.accuracy)) mode = 'GPS accuracy about ' + Math.round(nav.accuracy) + ' m' + (nav.accuracy > NAV_MAX_ACC ? ', waiting for a better fix' : '');
   const nextLine = next && !nav.arrived ? 'Then ' + navLine(next).charAt(0).toLowerCase() + navLine(next).slice(1) : '';
   const key = [main.action, main.line, dist, nextLine, mode, nav.paused].join('|');
   if (key === nav.key) return;
