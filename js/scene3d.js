@@ -457,6 +457,7 @@ export function createScene3D(map, options) {
 
   let userSvg = null;
   let userHeading = null;
+  let userAccuracy = null;
 
   function svgNode(name, attrs) {
     const node = document.createElementNS('http://www.w3.org/2000/svg', name);
@@ -494,7 +495,15 @@ export function createScene3D(map, options) {
         }));
       }
     }
-    userSvg.appendChild(svgNode('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: 22, fill: 'rgba(26, 115, 232, 0.16)' }));
+    const halo = userAccuracy ? Math.min(600, Math.max(22, userAccuracy / metersPerPixel())) : 22;
+    userSvg.appendChild(svgNode('circle', {
+      cx: cx.toFixed(1),
+      cy: cy.toFixed(1),
+      r: halo.toFixed(1),
+      fill: 'rgba(26, 115, 232, 0.14)',
+      stroke: halo > 22 ? 'rgba(26, 115, 232, 0.35)' : 'none',
+      'stroke-width': 1
+    }));
     userSvg.appendChild(svgNode('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: 12, fill: '#ffffff', style: 'filter: drop-shadow(0 1px 3px rgba(15, 30, 50, 0.45))' }));
     userSvg.appendChild(svgNode('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: 8.5, fill: '#1A73E8' }));
   }
@@ -1664,7 +1673,8 @@ export function createScene3D(map, options) {
     paintUserTrail();
   }
 
-  function setUser(lngLat, elev, heading) {
+  function setUser(lngLat, elev, heading, accuracy) {
+    userAccuracy = Number.isFinite(accuracy) ? accuracy : null;
     if (!lngLat) {
       clearUserTrail();
       if (userMark) userMark.visible = false;

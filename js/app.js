@@ -1837,7 +1837,7 @@ function paintUser() {
     scene3d.setUser(null);
     return;
   }
-  scene3d.setUser(deviceFix.lngLat, hit ? levelElev(hit.floor.id) : 0, deviceFix.heading);
+  scene3d.setUser(deviceFix.lngLat, hit ? levelElev(hit.floor.id) : 0, deviceFix.heading, deviceFix.accuracy);
 }
 
 function placeDevice() {
@@ -1939,7 +1939,7 @@ function beginLocate() {
   }
   deviceWatch = navigator.geolocation.watchPosition(onLocate, onLocateError, {
     enableHighAccuracy: true,
-    maximumAge: 5000,
+    maximumAge: 0,
     timeout: 20000
   });
 }
@@ -2146,6 +2146,37 @@ const NAV_ZOOM = 20.6;
 const NAV_MAX_ACC = 60;
 const NAV_MIN_MOVE = 1.2;
 const NAV_STALE_MS = 8000;
+const NAV_PREDICT_S = 1.5;
+const NAV_MAX_SPEED = 40;
+
+let compass = null;
+let compassOn = false;
+
+function enableCompass() {
+  const D = window.DeviceOrientationEvent;
+  if (compassOn || !D) return;
+  const listen = () => {
+    compassOn = true;
+    const type = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
+    window.addEventListener(type, onCompass, true);
+  };
+  if (typeof D.requestPermission === 'function') {
+    D.requestPermission().then((answer) => {
+      if (answer === 'granted') listen();
+    }).catch(() => {});
+  } else {
+    listen();
+  }
+}
+
+function onCompass(event) {
+  let heading = null;
+  if (Number.isFinite(event.webkitCompassHeading)) heading = event.webkitCompassHeading;
+  else if (event.absolute && Number.isFinite(event.alpha)) heading = 360 - event.alpha;
+  if (heading == null) return;
+  const turn = screen.orientation && Number.isFinite(screen.orientation.angle) ? screen.orientation.angle : (window.orientation || 0);
+  compass = { heading: (heading + turn + 360) % 360, at: performance.now() };
+}
 
 function navPieces(route) {
   const pieces = [];
@@ -2316,6 +2347,8 @@ function syncFollowButton() {
 }
 
 function showNavChrome() {
+  nav.lockAt = performance.now() + 1200;
+  if (nav.mode === 'gps') enableCompass();
   if (state.tool) setTool(null);
   if (window.innerWidth <= 900) closeDock();
   hideRideCaption();
@@ -2362,14 +2395,35 @@ function navGps() {
   if (nav.raw) {
     const dx = m[0] - nav.raw.x;
     const dy = m[1] - nav.raw.y;
-    const walking = Number.isFinite(deviceFix.speed) && deviceFix.speed > 0.5;
-    if (Math.hypot(dx, dy) < NAV_MIN_MOVE && !walking) {
+    const dist = Math.hypot(dx, dy);
+    const speed = deviceFix.speed;
+    const walking = Number.isFinite(speed) && speed > 0.5;
+    if (dist < NAV_MIN_MOVE && !walking) {
       nav.moving = false;
+      nav.vel = null;
       return;
     }
     nav.moving = true;
-    if (Math.hypot(dx, dy) > 0.5) nav.walkHeading = Math.atan2(dx, dy) * 180 / Math.PI;
+    if (dist > 0.5) nav.walkHeading = Math.atan2(dx, dy) * 180 / Math.PI;
+    const gap = (now - nav.fixAt) / 1000;
+    let vx = 0;
+    let vy = 0;
+    if (walking && Number.isFinite(deviceFix.heading)) {
+      const r = deviceFix.heading * Math.PI / 180;
+      vx = Math.sin(r) * speed;
+      vy = Math.cos(r) * speed;
+    } else if (gap > 0.2) {
+      vx = dx / gap;
+      vy = dy / gap;
+    }
+    const fast = Math.hypot(vx, vy);
+    if (fast > NAV_MAX_SPEED) {
+      vx *= NAV_MAX_SPEED / fast;
+      vy *= NAV_MAX_SPEED / fast;
+    }
+    nav.vel = nav.vel ? { x: (nav.vel.x + vx) / 2, y: (nav.vel.y + vy) / 2 } : { x: vx, y: vy };
   }
+  nav.fixAt = now;
   nav.raw = { x: m[0], y: m[1], level: hit ? hit.floor.id : null };
   if (!nav.shown) nav.shown = { x: m[0], y: m[1] };
   if (nav.free) return;
@@ -2402,24 +2456,34 @@ function navTick(now) {
   }
   nav.outside = level == null;
   let head = pt ? pt.heading : null;
+  let turnRate = 2;
   if (nav.mode === 'gps') {
     const phone = deviceFix && Number.isFinite(deviceFix.heading) ? deviceFix.heading : null;
-    head = phone != null ? phone : (nav.moving && nav.walkHeading != null ? nav.walkHeading : null);
+    if (compass && now - compass.at < 1000) {
+      head = compass.heading;
+      turnRate = 5;
+    } else {
+      head = phone != null ? phone : (nav.moving && nav.walkHeading != null ? nav.walkHeading : null);
+    }
   }
-  if (head != null) nav.bearing = turnToward(nav.bearing, (head + 360) % 360, Math.min(1, dt * 2));
+  if (head != null) nav.bearing = turnToward(nav.bearing, (head + 360) % 360, Math.min(1, dt * turnRate));
   let x = pt ? pt.x : 0;
   let y = pt ? pt.y : 0;
   let elev = pt ? pt.elev : 0;
   if (raw) {
-    const k = Math.min(1, dt * 2.5);
-    nav.shown.x += (nav.raw.x - nav.shown.x) * k;
-    nav.shown.y += (nav.raw.y - nav.shown.y) * k;
+    const age = Math.min(NAV_PREDICT_S, Math.max(0, (now - nav.fixAt) / 1000));
+    const vel = nav.moving && nav.vel ? nav.vel : null;
+    const aimX = nav.raw.x + (vel ? vel.x * age : 0);
+    const aimY = nav.raw.y + (vel ? vel.y * age : 0);
+    const k = Math.min(1, dt * 6);
+    nav.shown.x += (aimX - nav.shown.x) * k;
+    nav.shown.y += (aimY - nav.shown.y) * k;
     x = nav.shown.x;
     y = nav.shown.y;
     elev = level != null ? levelElev(level) : 0;
   }
   const lngLat = spatial.toLonLat(x, y);
-  scene3d.setUser(lngLat, elev, nav.bearing);
+  scene3d.setUser(lngLat, elev, nav.bearing, raw ? nav.accuracy : undefined);
   if (!nav.paused) navCamera(lngLat, elev, dt);
   if (nav.free) {
     paintFollowBanner();
@@ -2451,8 +2515,9 @@ function navCamera(lngLat, elev, dt) {
   const b = nav.bearing * Math.PI / 180;
   const front = [lngLat[0] + (ahead * Math.sin(b)) / spatial.lonScale, lngLat[1] + (ahead * Math.cos(b)) / spatial.latScale];
   const target = cameraCenter(front, elev, cam.pitch, nav.bearing);
-  cam.lng += (target[0] - cam.lng) * k;
-  cam.lat += (target[1] - cam.lat) * k;
+  const follow = nav.mode === 'gps' && nav.lockAt && performance.now() > nav.lockAt ? Math.min(1, dt * 14) : k;
+  cam.lng += (target[0] - cam.lng) * follow;
+  cam.lat += (target[1] - cam.lat) * follow;
   state._lastElev = elev;
   map.jumpTo({ center: [cam.lng, cam.lat], zoom: cam.zoom, pitch: cam.pitch, bearing: nav.bearing });
 }
@@ -2542,6 +2607,7 @@ function resumeNavCamera() {
   const c = map.getCenter();
   nav.cam = { lng: c.lng, lat: c.lat, zoom: map.getZoom(), pitch: map.getPitch() };
   nav.paused = false;
+  nav.lockAt = performance.now() + 800;
   document.getElementById('btn-nav-recenter').hidden = true;
   if (!nav.raf) {
     nav.last = 0;
