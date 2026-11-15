@@ -16383,6 +16383,816 @@
           ]
         ]
       }
+    },
+    {
+      "type": "Feature",
+      "id": "apt-level",
+      "properties": {
+        "feature_type": "level",
+        "name": "Apartment",
+        "level_id": "APT",
+        "level_name": "Apartment",
+        "ordinal": 0,
+        "building": "Apartment"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.40466719,
+              31.05708981
+            ],
+            [
+              31.40486475,
+              31.05708981
+            ],
+            [
+              31.40486475,
+              31.05720272
+            ],
+            [
+              31.40469225,
+              31.05720272
+            ],
+            [
+              31.40469225,
+              31.05721041
+            ],
+            [
+              31.40467338,
+              31.05721041
+            ],
+            [
+              31.40467338,
+              31.05720272
+            ],
+            [
+              31.40466719,
+              31.05720272
+            ],
+            [
+              31.40466719,
+              31.05708981
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "apt-ceo",
+      "properties": {
+        "feature_type": "unit",
+        "name": "CEO Room",
+        "category": "room",
+        "level_id": "APT",
+        "level_name": "Apartment",
+        "ordinal": 0,
+        "building": "Apartment",
+        "summary": "CEO Room, about 9 m²."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.40466971,
+              31.05717197
+            ],
+            [
+              31.40469747,
+              31.05717197
+            ],
+            [
+              31.40469747,
+              31.05720272
+            ],
+            [
+              31.40466971,
+              31.05720272
+            ],
+            [
+              31.40466971,
+              31.05717197
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "apt-hr",
+      "properties": {
+        "feature_type": "unit",
+        "name": "HR Room",
+        "category": "room",
+        "level_id": "APT",
+        "level_name": "Apartment",
+        "ordinal": 0,
+        "building": "Apartment",
+        "summary": "HR Room, about 10 m²."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.40469747,
+              31.05717197
+            ],
+            [
+              31.40472831,
+              31.05717197
+            ],
+            [
+              31.40472831,
+              31.05720272
+            ],
+            [
+              31.40469747,
+              31.05720272
+            ],
+            [
+              31.40469747,
+              31.05717197
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "apt-dev",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Developers Room",
+        "category": "room",
+        "level_id": "APT",
+        "level_name": "Apartment",
+        "ordinal": 0,
+        "building": "Apartment",
+        "summary": "Developers Room, about 16 m²."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.40472831,
+              31.05717197
+            ],
+            [
+              31.40477765,
+              31.05717197
+            ],
+            [
+              31.40477765,
+              31.05720272
+            ],
+            [
+              31.40472831,
+              31.05720272
+            ],
+            [
+              31.40472831,
+              31.05717197
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "apt-kitchen",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Kitchen",
+        "category": "room",
+        "level_id": "APT",
+        "level_name": "Apartment",
+        "ordinal": 0,
+        "building": "Apartment",
+        "summary": "Kitchen, about 16 m²."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.40477765,
+              31.05717197
+            ],
+            [
+              31.404827,
+              31.05717197
+            ],
+            [
+              31.404827,
+              31.05720272
+            ],
+            [
+              31.40477765,
+              31.05720272
+            ],
+            [
+              31.40477765,
+              31.05717197
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "apt-rest",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Rest Room",
+        "category": "room",
+        "level_id": "APT",
+        "level_name": "Apartment",
+        "ordinal": 0,
+        "building": "Apartment",
+        "summary": "Rest Room, about 18 m²."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.404827,
+              31.05715749
+            ],
+            [
+              31.40486475,
+              31.05715749
+            ],
+            [
+              31.40486475,
+              31.05720272
+            ],
+            [
+              31.404827,
+              31.05720272
+            ],
+            [
+              31.404827,
+              31.05715749
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "apt-girls",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Girls Bathroom",
+        "category": "restroom",
+        "level_id": "APT",
+        "level_name": "Apartment",
+        "ordinal": 0,
+        "building": "Apartment",
+        "summary": "Girls bathroom, about 9 m²."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.40466971,
+              31.05713489
+            ],
+            [
+              31.40470117,
+              31.05713489
+            ],
+            [
+              31.40470117,
+              31.05716203
+            ],
+            [
+              31.40466971,
+              31.05716203
+            ],
+            [
+              31.40466971,
+              31.05713489
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "apt-boys",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Boys Bathroom",
+        "category": "restroom",
+        "level_id": "APT",
+        "level_name": "Apartment",
+        "ordinal": 0,
+        "building": "Apartment",
+        "summary": "Boys bathroom, about 7 m²."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.40477876,
+              31.05709198
+            ],
+            [
+              31.40480393,
+              31.05709198
+            ],
+            [
+              31.40480393,
+              31.05711837
+            ],
+            [
+              31.40477876,
+              31.05711837
+            ],
+            [
+              31.40477876,
+              31.05709198
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "apt-living",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Living",
+        "category": "room",
+        "level_id": "APT",
+        "level_name": "Apartment",
+        "ordinal": 0,
+        "building": "Apartment",
+        "summary": "Living, about 42 m²."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.40480393,
+              31.05709198
+            ],
+            [
+              31.40486475,
+              31.05709198
+            ],
+            [
+              31.40486475,
+              31.05715749
+            ],
+            [
+              31.40480393,
+              31.05715749
+            ],
+            [
+              31.40480393,
+              31.05709198
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "apt-corridor",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Corridor",
+        "category": "corridor",
+        "level_id": "APT",
+        "level_name": "Apartment",
+        "ordinal": 0,
+        "building": "Apartment",
+        "summary": "Internal corridor, about 17 m²."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.40466971,
+              31.05716203
+            ],
+            [
+              31.40466971,
+              31.05717197
+            ],
+            [
+              31.404827,
+              31.05717197
+            ],
+            [
+              31.404827,
+              31.05715749
+            ],
+            [
+              31.40481599,
+              31.05715749
+            ],
+            [
+              31.40481599,
+              31.05716203
+            ],
+            [
+              31.40466971,
+              31.05716203
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "apt-balcony",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Balcony",
+        "category": "room",
+        "level_id": "APT",
+        "level_name": "Apartment",
+        "ordinal": 0,
+        "building": "Apartment",
+        "summary": "Balcony outside the CEO Room."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.40467338,
+              31.05720272
+            ],
+            [
+              31.40469225,
+              31.05720272
+            ],
+            [
+              31.40469225,
+              31.05721041
+            ],
+            [
+              31.40467338,
+              31.05721041
+            ],
+            [
+              31.40467338,
+              31.05720272
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "apt-stair-1",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Stair",
+        "category": "stair",
+        "level_id": "APT",
+        "level_name": "Apartment",
+        "ordinal": 0,
+        "building": "Apartment",
+        "summary": "Stair outside the apartment, about 2 m²."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.40470746,
+              31.05709831
+            ],
+            [
+              31.40471794,
+              31.05709831
+            ],
+            [
+              31.40471794,
+              31.05711641
+            ],
+            [
+              31.40470746,
+              31.05711641
+            ],
+            [
+              31.40470746,
+              31.05709831
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "apt-stair-2",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Stair",
+        "category": "stair",
+        "level_id": "APT",
+        "level_name": "Apartment",
+        "ordinal": 0,
+        "building": "Apartment",
+        "summary": "Stair outside the apartment, about 2 m²."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.40472424,
+              31.05709831
+            ],
+            [
+              31.40473472,
+              31.05709831
+            ],
+            [
+              31.40473472,
+              31.05711641
+            ],
+            [
+              31.40472424,
+              31.05711641
+            ],
+            [
+              31.40472424,
+              31.05709831
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "apt-wall-west",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Wall",
+        "category": "shell",
+        "level_id": "APT",
+        "level_name": "Apartment",
+        "ordinal": 0,
+        "building": "Apartment",
+        "summary": "Outside wall."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.4046674,
+              31.05709198
+            ],
+            [
+              31.40466971,
+              31.05709198
+            ],
+            [
+              31.40466971,
+              31.05713489
+            ],
+            [
+              31.4046674,
+              31.05713489
+            ],
+            [
+              31.4046674,
+              31.05709198
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "apt-wall-south",
+      "properties": {
+        "feature_type": "unit",
+        "name": "Wall",
+        "category": "shell",
+        "level_id": "APT",
+        "level_name": "Apartment",
+        "ordinal": 0,
+        "building": "Apartment",
+        "summary": "Outside wall."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.40466971,
+              31.05708999
+            ],
+            [
+              31.40477876,
+              31.05708999
+            ],
+            [
+              31.40477876,
+              31.05709198
+            ],
+            [
+              31.40466971,
+              31.05709198
+            ],
+            [
+              31.40466971,
+              31.05708999
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "apt-path",
+      "properties": {
+        "feature_type": "pathway",
+        "name": "Apartment walk",
+        "level_id": "APT",
+        "level_name": "Apartment",
+        "ordinal": 0,
+        "building": "Apartment"
+      },
+      "geometry": {
+        "type": "MultiLineString",
+        "coordinates": [
+          [
+            [
+              31.40468359,
+              31.057167
+            ],
+            [
+              31.40468544,
+              31.057167
+            ],
+            [
+              31.40471289,
+              31.057167
+            ],
+            [
+              31.40475298,
+              31.057167
+            ],
+            [
+              31.40480233,
+              31.057167
+            ],
+            [
+              31.4048215,
+              31.057167
+            ],
+            [
+              31.40482281,
+              31.057167
+            ]
+          ],
+          [
+            [
+              31.40468359,
+              31.057167
+            ],
+            [
+              31.40468359,
+              31.05718734
+            ]
+          ],
+          [
+            [
+              31.40471289,
+              31.057167
+            ],
+            [
+              31.40471289,
+              31.05718734
+            ]
+          ],
+          [
+            [
+              31.40475298,
+              31.057167
+            ],
+            [
+              31.40475298,
+              31.05718734
+            ]
+          ],
+          [
+            [
+              31.40480233,
+              31.057167
+            ],
+            [
+              31.40480233,
+              31.05718734
+            ]
+          ],
+          [
+            [
+              31.40468544,
+              31.05714846
+            ],
+            [
+              31.40468544,
+              31.057167
+            ]
+          ],
+          [
+            [
+              31.40482281,
+              31.057167
+            ],
+            [
+              31.40484588,
+              31.057167
+            ],
+            [
+              31.40484588,
+              31.05718011
+            ]
+          ],
+          [
+            [
+              31.4048215,
+              31.057167
+            ],
+            [
+              31.4048215,
+              31.05712474
+            ],
+            [
+              31.4048215,
+              31.0571348
+            ],
+            [
+              31.4048215,
+              31.05710518
+            ]
+          ],
+          [
+            [
+              31.40478715,
+              31.0571348
+            ],
+            [
+              31.4048215,
+              31.0571348
+            ]
+          ],
+          [
+            [
+              31.40479135,
+              31.05710518
+            ],
+            [
+              31.4048215,
+              31.05710518
+            ]
+          ],
+          [
+            [
+              31.40468359,
+              31.05718734
+            ],
+            [
+              31.40468359,
+              31.05720652
+            ]
+          ],
+          [
+            [
+              31.40471794,
+              31.05710736
+            ],
+            [
+              31.40471794,
+              31.0571348
+            ],
+            [
+              31.40478715,
+              31.0571348
+            ]
+          ]
+        ]
+      }
     }
   ]
 }
