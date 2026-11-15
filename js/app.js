@@ -1,5 +1,13 @@
 import { createScene3D } from './scene3d.js';
 
+function t(key) {
+  return window.IndoorI18n ? IndoorI18n.t(key) : key;
+}
+
+function tn(name) {
+  return window.IndoorI18n ? IndoorI18n.place(name) : (name || '');
+}
+
 const FLOOR_HEIGHT = 4;
 const BASE = 1.4;
 const SLAB = 0.25;
@@ -57,7 +65,8 @@ const state = {
   follow: true,
   vertical: 'either',
   ground: 0,
-  viewer: null
+  viewer: null,
+  building: 'mall'
 };
 
 let map;
@@ -555,8 +564,17 @@ function buildWalls() {
   return { type: 'FeatureCollection', features: out };
 }
 
+function buildingOfLevel(id) {
+  return id === 'APT' ? 'apartment' : 'mall';
+}
+
+function floorsForBuilding() {
+  return floors.filter((floor) => buildingOfLevel(floor.id) === state.building);
+}
+
 function applyFilters() {
   if (!layersReady || !state.levelId) return;
+  scene3d.setLevelGroup(floorsForBuilding().map((floor) => floor.id));
   scene3d.setActiveLevel(state.levelId, floorOrdinal(state.levelId), state.layers, floorBase(floorOrdinal(state.levelId)));
   scene3d.setPathwaysVisible(state.layers.pathway);
   scene3d.setNetworkVisible(state.layers.network);
@@ -795,8 +813,19 @@ function loadCollection(fc, fit) {
   walls = buildWalls();
   scene3d.setOrigin([spatial.origin.lon, spatial.origin.lat], state.ground);
   if (!floors.some((f) => f.id === state.levelId)) {
-    const ground = floors.reduce((best, floor) => (Math.abs(floor.ordinal) < Math.abs(best.ordinal) ? floor : best));
-    state.levelId = ground.id;
+    const apartment = floors.find((floor) => floor.id === 'APT');
+    if (apartment) {
+      state.building = 'apartment';
+      state.levelId = apartment.id;
+    } else {
+      const ground = floors.reduce((best, floor) => {
+        if (floor.id === 'L0') return floor;
+        if (best.id === 'L0') return best;
+        return Math.abs(floor.ordinal) < Math.abs(best.ordinal) ? floor : best;
+      });
+      state.building = buildingOfLevel(ground.id);
+      state.levelId = ground.id;
+    }
   }
 
   state.selectedId = null;
@@ -963,16 +992,48 @@ function syncGlass() {
 
 function floorCode(floor) {
   if (floor.ordinal > 0) return String(floor.ordinal);
-  if (floor.ordinal === 0) return 'G';
+  if (floor.ordinal === 0) return floor.id === 'L0' ? 'G' : floor.name.slice(0, 1).toUpperCase();
   const id = String(floor.id || '').toUpperCase();
   if (id && id.length <= 3) return id;
   return 'B' + (-floor.ordinal);
 }
 
+function setBuilding(id) {
+  if (id !== 'mall' && id !== 'apartment') return;
+  if (id === state.building && floorsForBuilding().some((floor) => floor.id === state.levelId)) {
+    syncFloorUi();
+    return;
+  }
+  state.building = id;
+  const list = floorsForBuilding();
+  const next = list.some((floor) => floor.id === state.levelId) ? state.levelId : (id === 'apartment' ? 'APT' : 'L0');
+  syncFloorUi();
+  if (next !== state.levelId) setFloor(next, true);
+  else {
+    applyFilters();
+    fitFloor(false);
+  }
+}
+
 function syncFloorUi() {
   const pills = document.getElementById('floor-pills');
   pills.innerHTML = '';
-  floors.slice().reverse().forEach((floor) => {
+  const shown = floorsForBuilding();
+  const bar = document.createElement('div');
+  bar.className = 'building-switch';
+  bar.setAttribute('role', 'group');
+  bar.setAttribute('aria-label', 'Building');
+  [['mall', 'Mall'], ['apartment', 'Apartment']].forEach((item) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'bookmark-pill' + (state.building === item[0] ? ' active' : '');
+    btn.textContent = t(item[0] === 'mall' ? 'mall' : 'apartment');
+    btn.setAttribute('aria-pressed', state.building === item[0] ? 'true' : 'false');
+    btn.addEventListener('click', () => setBuilding(item[0]));
+    bar.appendChild(btn);
+  });
+  pills.appendChild(bar);
+  shown.slice().reverse().forEach((floor) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'bookmark-pill' + (floor.id === state.levelId ? ' active' : '');
@@ -981,8 +1042,8 @@ function syncFloorUi() {
     swatch.style.background = '#' + floorGround(floor.ordinal).toString(16).padStart(6, '0');
     btn.appendChild(swatch);
     btn.appendChild(document.createTextNode(floorCode(floor)));
-    btn.title = floor.name;
-    btn.setAttribute('aria-label', floor.name);
+    btn.title = tn(floor.name);
+    btn.setAttribute('aria-label', tn(floor.name));
     btn.setAttribute('aria-pressed', floor.id === state.levelId ? 'true' : 'false');
     btn.addEventListener('click', () => setFloor(floor.id, true));
     pills.appendChild(btn);
@@ -990,12 +1051,12 @@ function syncFloorUi() {
 
   const list = document.getElementById('floor-list');
   list.innerHTML = '';
-  floors.slice().reverse().forEach((floor) => {
+  shown.slice().reverse().forEach((floor) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'choice-btn' + (floor.id === state.levelId ? ' active' : '');
     const ground = '#' + floorGround(floor.ordinal).toString(16).padStart(6, '0');
-    btn.innerHTML = '<span class="floor-swatch" style="background:' + ground + ';margin-top:4px"></span><span class="choice-copy"><strong>' + esc(floor.name) + '</strong><span>' + unitsOn(floor.id).length + ' places</span></span>';
+    btn.innerHTML = '<span class="floor-swatch" style="background:' + ground + ';margin-top:4px"></span><span class="choice-copy"><strong>' + esc(tn(floor.name)) + '</strong><span>' + unitsOn(floor.id).length + ' ' + t('placesWord') + '</span></span>';
     btn.addEventListener('click', () => setFloor(floor.id, true));
     list.appendChild(btn);
   });
@@ -1011,7 +1072,7 @@ function renderLayerChoices() {
     btn.type = 'button';
     btn.className = 'choice-btn' + (state.layers[cat.id] ? ' active' : '');
     btn.setAttribute('aria-pressed', state.layers[cat.id] ? 'true' : 'false');
-    btn.innerHTML = '<span class="choice-copy"><strong>' + esc(cat.label) + '</strong><span>' + esc(cat.note || 'Show on the plan') + '</span></span>';
+    btn.innerHTML = '<span class="choice-copy"><strong>' + esc(t('cat.' + cat.id)) + '</strong><span>' + esc(cat.note ? t('catNote.' + cat.id) : t('showOnPlan')) + '</span></span>';
     btn.addEventListener('click', () => toggleLayer(cat.id));
     list.appendChild(btn);
   });
@@ -1019,7 +1080,7 @@ function renderLayerChoices() {
   labels.type = 'button';
   labels.className = 'choice-btn' + (state.layers.labels ? ' active' : '');
   labels.setAttribute('aria-pressed', state.layers.labels ? 'true' : 'false');
-  labels.innerHTML = '<span class="choice-copy"><strong>Labels</strong><span>Names on the plan</span></span>';
+  labels.innerHTML = '<span class="choice-copy"><strong>' + esc(t('labels')) + '</strong><span>' + esc(t('labelsNote')) + '</span></span>';
   labels.addEventListener('click', () => toggleLayer('labels'));
   list.appendChild(labels);
 }
@@ -1032,9 +1093,9 @@ function renderLegend() {
     row.type = 'button';
     row.className = 'legend-item' + (state.layers[cat.id] ? '' : ' off');
     if (cat.lineOnly) {
-      row.innerHTML = '<span class="legend-line" style="background:' + cat.line + '"></span><span class="legend-text">' + esc(cat.label) + '</span>';
+      row.innerHTML = '<span class="legend-line" style="background:' + cat.line + '"></span><span class="legend-text">' + esc(t('cat.' + cat.id)) + '</span>';
     } else {
-      row.innerHTML = '<span class="legend-swatch" style="background:' + cat.fill + ';border-color:' + cat.line + '"></span><span class="legend-text">' + esc(cat.label) + '</span>';
+      row.innerHTML = '<span class="legend-swatch" style="background:' + cat.fill + ';border-color:' + cat.line + '"></span><span class="legend-text">' + esc(t('cat.' + cat.id)) + '</span>';
     }
     row.addEventListener('click', () => toggleLayer(cat.id));
     host.appendChild(row);
@@ -1126,7 +1187,7 @@ function refreshLabels() {
     if (p.feature_type !== 'level' || p.level_id !== state.levelId || !p.building || seen.has(p.building)) return;
     seen.add(p.building);
     list.push({
-      text: p.building,
+      text: tn(p.building),
       lngLat: IndoorRoute.describe(spatial, f).centroidLonLat,
       height: titleHeight,
       title: true,
@@ -1152,7 +1213,7 @@ function refreshLabels() {
       if (state.exploreKind !== 'all' && !selected && !car && !role && info.kind !== state.exploreKind) return;
       const circulation = p.category === 'escalator' || p.category === 'elevator' || p.category === 'stair';
       list.push({
-        text: car ? p.name + ' · Car' : p.name,
+        text: car ? tn(p.name) + ' · ' + t('car') : tn(p.name),
         lngLat: IndoorRoute.describe(spatial, f).centroidLonLat,
         height: height,
         selected: selected,
@@ -1201,7 +1262,7 @@ function kindButton(kind) {
   btn.type = 'button';
   btn.className = 'kind-chip';
   btn.dataset.kind = kind.id;
-  btn.textContent = kind.label;
+  btn.textContent = t('kind.' + kind.id);
   return btn;
 }
 
@@ -1242,7 +1303,7 @@ function renderExplore() {
   const more = document.getElementById('filter-more');
   const extraOn = state.exploreKind === 'see' || state.exploreKind === 'room';
   if (more) {
-    const label = extraOn ? (state.exploreKind === 'see' ? 'See & do' : 'Rooms') : 'More';
+    const label = extraOn ? t('kind.' + state.exploreKind) : t('more');
     more.textContent = label;
     more.classList.toggle('active', extraOn);
     more.setAttribute('aria-pressed', extraOn ? 'true' : 'false');
@@ -1264,17 +1325,25 @@ function renderExplore() {
   const q = (document.getElementById('explore-search').value || '').trim().toLowerCase();
   const hits = collection.features.filter((f) => {
     const p = f.properties || {};
-    if (p.feature_type !== 'unit' || p.category === 'corridor') return false;
+    if (p.feature_type !== 'unit' || p.category === 'corridor' || p.category === 'shell') return false;
     const info = placeInfo(p);
     if (state.exploreKind === 'all' ? info.kind === 'move' : info.kind !== state.exploreKind) return false;
-    if (state.exploreScope === 'here' && p.level_id !== state.levelId) return false;
+    const placeBuilding = buildingOfLevel(p.level_id);
+    const apartmentPlace = placeBuilding === 'apartment';
+    if (placeBuilding !== state.building && !apartmentPlace) return false;
+    if (placeBuilding === state.building && state.exploreScope === 'here' && p.level_id !== state.levelId) return false;
     if (!q) return true;
-    const blob = (p.name + ' ' + info.about + ' ' + info.offers.join(' ') + ' ' + info.kindLabel + ' ' + (p.level_name || '') + ' ' + (p.building || '')).toLowerCase();
+    const blob = (p.name + ' ' + tn(p.name) + ' ' + info.about + ' ' + info.offers.join(' ') + ' ' + info.kindLabel + ' ' + t('kind.' + info.kind) + ' ' + (p.level_name || '') + ' ' + tn(p.level_name) + ' ' + (p.building || '') + ' ' + tn(p.building)).toLowerCase();
     return blob.includes(q);
   });
   hits.sort((a, b) => {
     const ap = a.properties;
     const bp = b.properties;
+    if (state.building !== 'apartment') {
+      const aa = buildingOfLevel(ap.level_id) === 'apartment' ? 0 : 1;
+      const bb = buildingOfLevel(bp.level_id) === 'apartment' ? 0 : 1;
+      if (aa !== bb) return aa - bb;
+    }
     const af = ap.level_id === state.levelId ? 0 : 1;
     const bf = bp.level_id === state.levelId ? 0 : 1;
     if (af !== bf) return af - bf;
@@ -1286,10 +1355,10 @@ function renderExplore() {
     const here = hits.filter((f) => f.properties.level_id === state.levelId).length;
     const show = state.exploreKind !== 'all' || !!q;
     countBtn.hidden = !show;
-    countBtn.textContent = here + (here === 1 ? ' place' : ' places') + ' on this floor';
+    countBtn.textContent = window.IndoorI18n ? IndoorI18n.countPlaces(here) : (here + (here === 1 ? ' place' : ' places') + ' on this floor');
   }
   if (!hits.length) {
-    host.innerHTML = '<p class="muted">' + (q ? 'Nothing matches that.' : 'Nothing of this type on this floor.') + '</p>';
+    host.innerHTML = '<p class="muted">' + (q ? t('nothingTyped') : t('nothingHere')) + '</p>';
     syncDockTitle();
     return;
   }
@@ -1298,13 +1367,15 @@ function renderExplore() {
     const p = f.properties;
     const info = placeInfo(p);
     const line = info.offers.length ? info.offers.join(', ') : (info.about || info.kindLabel);
-    const where = state.exploreScope === 'all' || p.level_id !== state.levelId ? (p.level_name || floorName(p.level_id)) : info.kindLabel;
+    const shownLine = window.IndoorI18n && IndoorI18n.lang() === 'ar' ? t('kind.' + info.kind) : line;
+    const whereName = p.level_name || floorName(p.level_id);
+    const where = state.exploreScope === 'all' || p.level_id !== state.levelId ? tn(whereName) : (window.IndoorI18n && IndoorI18n.lang() === 'ar' ? t('kind.' + info.kind) : info.kindLabel);
     const mine = carId !== '' && carId === String(f.id);
     const current = String(f.id) === String(state.selectedId) ? ' is-current' : '';
     return '<button type="button" class="explore-card' + current + '" style="animation-delay:' + (Math.min(index, 8) * 30) + 'ms" data-place="' + esc(f.id) + '">'
-      + '<span class="explore-main"><strong>' + esc(p.name) + '</strong><span>' + esc(line) + '</span></span>'
-      + '<span class="explore-side">' + (mine ? '<span class="explore-car">My car</span>' : '')
-      + '<span class="crowd crowd-' + info.crowd + '">' + esc(info.crowdLabel.replace('Usually ', '')) + '</span><span class="explore-where">' + esc(where) + '</span></span>'
+      + '<span class="explore-main"><strong>' + esc(tn(p.name)) + '</strong><span>' + esc(shownLine) + '</span></span>'
+      + '<span class="explore-side">' + (mine ? '<span class="explore-car">' + esc(t('myCar')) + '</span>' : '')
+      + '<span class="crowd crowd-' + info.crowd + '">' + esc(window.IndoorI18n && IndoorI18n.lang() === 'ar' ? t('crowdShort.' + info.crowd) : info.crowdLabel.replace('Usually ', '')) + '</span><span class="explore-where">' + esc(where) + '</span></span>'
       + '</button>';
   }).join('');
   syncDockTitle();
@@ -1314,8 +1385,8 @@ function openDetail(feature) {
   const p = feature.properties;
   const info = placeInfo(p);
   const described = IndoorRoute.describe(spatial, feature);
-  document.getElementById('detail-type').textContent = info.kindLabel + ' · ' + (p.level_name || floorName(p.level_id));
-  document.getElementById('detail-title').textContent = p.name || 'Place';
+  document.getElementById('detail-type').textContent = (window.IndoorI18n && IndoorI18n.lang() === 'ar' ? t('kind.' + info.kind) : info.kindLabel) + ' · ' + tn(p.level_name || floorName(p.level_id));
+  document.getElementById('detail-title').textContent = tn(p.name) || t('place');
   const area = described.area > 1 ? Math.round(described.area) + ' m²' : '';
   const serves = servedText(p.transition_group);
   let html = '';
@@ -1325,24 +1396,24 @@ function openDetail(feature) {
   }
   html += '<div class="crowd-block crowd-' + info.crowd + '"><span class="crowd-dots" aria-hidden="true">'
     + [1, 2, 3].map((n) => '<i' + (n <= info.crowdLevel ? ' class="on"' : '') + '></i>').join('')
-    + '</span><span><strong>' + esc(info.crowdLabel) + '</strong><span>A typical time here, not a live count.</span></span></div>';
+    + '</span><span><strong>' + esc(window.IndoorI18n && IndoorI18n.lang() === 'ar' ? t('crowdShort.' + info.crowd) : info.crowdLabel) + '</strong><span>' + esc(t('typical')) + '</span></span></div>';
   html += '<div class="stat-grid">'
-    + '<div class="stat"><div class="k">Floor</div><div class="v">' + esc(p.level_name || floorName(p.level_id)) + '</div></div>'
-    + (area ? '<div class="stat"><div class="k">Area</div><div class="v">' + esc(area) + '</div></div>' : '')
+    + '<div class="stat"><div class="k">' + esc(t('floor')) + '</div><div class="v">' + esc(tn(p.level_name || floorName(p.level_id))) + '</div></div>'
+    + (area ? '<div class="stat"><div class="k">' + esc(t('area')) + '</div><div class="v">' + esc(area) + '</div></div>' : '')
     + '</div>';
-  if (serves) html += '<div class="dealer-block"><p>Connects ' + esc(serves) + '.</p></div>';
+  if (serves) html += '<div class="dealer-block"><p>' + esc(t('connects')) + ' ' + esc(serves) + '.</p></div>';
   const parking = info.kind === 'park';
   const mine = parking && carFeatureId() === String(feature.id);
-  if (mine) html += '<p class="my-car-note">Your car is in this bay.</p>';
+  if (mine) html += '<p class="my-car-note">' + esc(t('carHere')) + '</p>';
   html += '<div class="detail-actions">'
-    + '<button class="btn btn-primary" type="button" id="detail-to">Directions here</button>';
+    + '<button class="btn btn-primary" type="button" id="detail-to">' + esc(t('directionsHere')) + '</button>';
   if (parking) {
     html += mine
-      ? '<button class="btn" type="button" id="detail-forget-car">Forget my car</button>'
-      : '<button class="btn" type="button" id="detail-remember-car">This is my car</button>';
+      ? '<button class="btn" type="button" id="detail-forget-car">' + esc(t('forgetCar')) + '</button>'
+      : '<button class="btn" type="button" id="detail-remember-car">' + esc(t('thisIsCar')) + '</button>';
   }
-  html += '<button class="btn" type="button" id="detail-from">Start from here</button>';
-  if (hasPano(feature)) html += '<button class="btn" type="button" id="detail-pano">Look around in 360</button>';
+  html += '<button class="btn" type="button" id="detail-from">' + esc(t('startFromHere')) + '</button>';
+  if (hasPano(feature)) html += '<button class="btn" type="button" id="detail-pano">' + esc(t('view360')) + '</button>';
   html += '</div>';
   document.getElementById('detail-body').innerHTML = html;
   document.getElementById('detail-panel').classList.add('open');
@@ -1370,7 +1441,10 @@ function closeDetail() {
 
 function selectFeature(feature, fly) {
   if (!feature) return;
-  if (feature.properties.level_id && feature.properties.level_id !== state.levelId) {
+  const building = buildingOfLevel(feature.properties.level_id);
+  const buildingChanged = building !== state.building;
+  if (buildingChanged) state.building = building;
+  if (feature.properties.level_id && (buildingChanged || feature.properties.level_id !== state.levelId)) {
     state.levelId = feature.properties.level_id;
     applyFilters();
     syncFloorUi();
@@ -1492,7 +1566,7 @@ function queryParts(query) {
 
 function placeBlob(p) {
   const info = placeInfo(p);
-  return (p.name + ' ' + info.about + ' ' + info.offers.join(' ') + ' ' + info.kindLabel + ' ' + (p.building || '') + ' ' + (p.level_name || '') + ' ' + (p.level_id || '')).toLowerCase();
+  return (p.name + ' ' + tn(p.name) + ' ' + info.about + ' ' + info.offers.join(' ') + ' ' + info.kindLabel + ' ' + t('kind.' + info.kind) + ' ' + (p.building || '') + ' ' + tn(p.building) + ' ' + (p.level_name || '') + ' ' + tn(p.level_name) + ' ' + (p.level_id || '')).toLowerCase();
 }
 
 function capPlaces(list, floorId) {
@@ -1526,6 +1600,7 @@ function routePlaces(query, floorId) {
   const places = collection.features.filter((f) => {
     const p = f.properties || {};
     if (p.feature_type !== 'unit' || p.category === 'corridor') return false;
+    if (buildingOfLevel(p.level_id) !== state.building) return false;
     if (levelId && p.level_id !== levelId) return false;
     if (!rest) return true;
     return placeBlob(p).includes(rest);
@@ -1552,6 +1627,224 @@ function routePlaces(query, floorId) {
 
 let placeTimer = 0;
 const searchFloor = { from: '', to: '' };
+const ask = { step: 0, mode: '', back: false };
+
+function askWhich() {
+  return ask.step === 0 ? 'from' : 'to';
+}
+
+const ASK_ICONS = {
+  here: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7L12 2z"/></svg>',
+  search: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 9.5 16c1.6 0 3.1-.6 4.2-1.6l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"/></svg>',
+  pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg>'
+};
+
+function askIcon(id) {
+  if (window.IndoorPlaces && IndoorPlaces.glyph) return IndoorPlaces.glyph(id).svg;
+  return ASK_ICONS.pin;
+}
+
+function askChoice(label, sub, icon, primary, onClick) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'ask-choice' + (primary ? ' primary' : '');
+  btn.innerHTML = '<span class="ask-ico">' + icon + '</span><span class="ask-copy"><strong>' + label + '</strong><span>' + sub + '</span></span>';
+  btn.addEventListener('click', onClick);
+  return btn;
+}
+
+function syncAsk() {
+  if (!document.getElementById('ask')) return;
+  if (ask.step < 2 && state.endpoints[askWhich()] && ask.mode === 'map') ask.mode = '';
+  if (ask.mode === 'search' && document.activeElement && document.activeElement.id === 'ask-input') return;
+  renderAsk();
+}
+
+function renderAsk() {
+  const body = document.getElementById('ask-body');
+  if (!body) return;
+  const ready = ask.step >= 2;
+  document.querySelectorAll('#ask-progress i').forEach((dot, index) => {
+    dot.classList.toggle('on', ready || index <= ask.step);
+  });
+  document.getElementById('ask-kicker').textContent = ready ? t('ready') : t('question') + ' ' + (ask.step + 1) + ' ' + t('of') + ' 2';
+  document.getElementById('ask-q').textContent = ready ? t('thisWay') : (ask.step === 0 ? t('whereYou') : t('whereGo'));
+  const prev = document.getElementById('ask-prev');
+  const next = document.getElementById('ask-next');
+  prev.disabled = ask.step === 0 && !ask.mode;
+  next.hidden = ready;
+  next.disabled = !ready && !state.endpoints[askWhich()];
+  body.innerHTML = '';
+  if (ready) {
+    ['from', 'to'].forEach((which) => {
+      const ep = state.endpoints[which];
+      const card = document.createElement('div');
+      card.className = 'ask-answer';
+      const where = ep ? (ep.source === 'gps' ? t('fromPhone') : [tn(ep.building), tn(ep.level_name)].filter(Boolean).join(' · ')) : '';
+      const mark = ep && ep.source === 'gps' ? ASK_ICONS.here : (ep ? askIcon(placeInfo(ep).icon || 'pin') : ASK_ICONS.pin);
+      card.innerHTML = '<span class="ask-ico">' + mark + '</span><span class="ask-copy"><strong>' + esc(ep ? tn(ep.name) : t('notSet')) + '</strong><span>' + (which === 'from' ? t('start') : t('destination')) + (where ? ' · ' + esc(where) : '') + '</span></span>';
+      body.appendChild(card);
+    });
+    return;
+  }
+  const which = askWhich();
+  const ep = state.endpoints[which];
+  if (ask.mode === 'map') {
+    const note = document.createElement('div');
+    note.className = 'ask-answer';
+    note.innerHTML = '<span class="ask-ico">' + ASK_ICONS.pin + '</span><span class="ask-copy"><strong>' + esc(t('tapPlace')) + '</strong><span>' + esc(t('tapBack')) + '</span></span>';
+    body.appendChild(note);
+    return;
+  }
+  if (ep) {
+    const card = document.createElement('div');
+    card.className = 'ask-answer';
+    const detail = ep.source === 'gps' ? t('fromPhone') : [tn(ep.building), tn(ep.level_name)].filter(Boolean).join(' · ');
+    const mark = ep.source === 'gps' ? ASK_ICONS.here : askIcon(placeInfo(ep).icon || 'room');
+    card.innerHTML = '<span class="ask-ico">' + mark + '</span><span class="ask-copy"><strong>' + esc(tn(ep.name)) + '</strong><span>' + esc(detail) + '</span></span>';
+    body.appendChild(card);
+    const change = document.createElement('button');
+    change.type = 'button';
+    change.className = 'ask-change';
+    change.textContent = t('change');
+    change.addEventListener('click', () => {
+      ask.mode = '';
+      setEndpoint(which, null, { keepClear: which === 'from', skipRoute: true });
+      if (which === 'to' || !state.endpoints.from || !state.endpoints.to) clearRoute();
+    });
+    body.appendChild(change);
+    return;
+  }
+  if (which === 'from') {
+    body.appendChild(askChoice(t('useLocation'), t('blueDot'), ASK_ICONS.here, true, () => useDeviceLocation()));
+  }
+  body.appendChild(askChoice(t('searchPlace'), t('openList'), ASK_ICONS.search, false, () => openAskFly()));
+  body.appendChild(askChoice(t('tapMap'), t('seeRoom'), ASK_ICONS.pin, false, () => {
+    ask.mode = 'map';
+    hidePlaceResults();
+    if (state.tool !== which) setTool(which);
+    else syncPickGuide();
+    renderAsk();
+  }));
+}
+
+function askCatalog(query) {
+  if (!collection) return [];
+  const q = query.trim().toLowerCase();
+  return collection.features.filter((feature) => {
+    const p = feature.properties || {};
+    if (p.feature_type !== 'unit') return false;
+    if (p.category === 'corridor' || p.category === 'shell' || p.category === 'stair') return false;
+    if (buildingOfLevel(p.level_id) !== state.building) return false;
+    if (!q) return true;
+    return placeBlob(p).includes(q);
+  }).sort((a, b) => String(a.properties.name || '').localeCompare(String(b.properties.name || '')));
+}
+
+function paintAskFly(query) {
+  const host = document.getElementById('ask-fly-list');
+  if (!host) return;
+  const list = askCatalog(query);
+  host.innerHTML = '';
+  if (!list.length) {
+    host.innerHTML = '<p class="ask-fly-empty">' + (query.trim() ? t('noMatch') : t('noPlaces')) + '</p>';
+    return;
+  }
+  list.forEach((feature, index) => {
+    const p = feature.properties;
+    const info = placeInfo(p);
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'ask-fly-hit';
+    row.style.animationDelay = Math.min(index, 8) * 30 + 'ms';
+    const where = [tn(p.level_name || floorName(p.level_id)), window.IndoorI18n && IndoorI18n.lang() === 'ar' ? t('kind.' + info.kind) : info.kindLabel].filter(Boolean).join(' · ');
+    row.innerHTML = '<span class="ask-ico">' + askIcon(info.icon) + '</span><span class="ask-copy"><strong>' + esc(tn(p.name)) + '</strong><span>' + esc(where) + '</span></span>';
+    row.addEventListener('click', () => chooseAskPlace(feature));
+    host.appendChild(row);
+  });
+}
+
+function openAskFly() {
+  const fly = document.getElementById('ask-fly');
+  const input = document.getElementById('ask-fly-input');
+  if (!fly || !input) return;
+  ask.mode = 'search';
+  fly.hidden = false;
+  document.body.classList.add('ask-fly-open');
+  input.value = '';
+  paintAskFly('');
+  input.focus();
+}
+
+function closeAskFly() {
+  const fly = document.getElementById('ask-fly');
+  if (fly) fly.hidden = true;
+  document.body.classList.remove('ask-fly-open');
+  if (ask.mode === 'search') ask.mode = '';
+  renderAsk();
+}
+
+function chooseAskPlace(feature) {
+  const which = askWhich();
+  ask.mode = '';
+  const fly = document.getElementById('ask-fly');
+  if (fly) fly.hidden = true;
+  document.body.classList.remove('ask-fly-open');
+  const chosen = endpointFromFeature(feature);
+  setEndpoint(which, chosen);
+  focusEndpoint(chosen);
+}
+
+function bindAsk() {
+  document.getElementById('ask-prev').addEventListener('click', () => {
+    if (ask.mode === 'search') {
+      closeAskFly();
+      return;
+    }
+    if (ask.mode) {
+      if (state.tool === 'from' || state.tool === 'to') setTool(state.tool);
+      ask.mode = '';
+      renderAsk();
+      return;
+    }
+    if (ask.step > 0) {
+      ask.step -= 1;
+      ask.mode = '';
+      renderAsk();
+    }
+  });
+  document.getElementById('ask-next').addEventListener('click', () => {
+    if (nextBlocked()) return;
+    if (ask.step === 0) ask.step = 1;
+    else if (ask.step === 1) {
+      ask.step = 2;
+      if (state.route) ask.back = false;
+    }
+    ask.mode = '';
+    renderAsk();
+    syncRouteSheet();
+  });
+  document.getElementById('ask-fly-back').addEventListener('click', closeAskFly);
+  document.getElementById('ask-fly-input').addEventListener('input', (event) => paintAskFly(event.target.value));
+  renderAsk();
+}
+
+function nextBlocked() {
+  if (ask.step === 0) return !state.endpoints.from;
+  if (ask.step === 1) return !state.endpoints.to;
+  return true;
+}
+
+function syncPlaceSheet() {
+  const dock = document.getElementById('dock');
+  if (!dock) return;
+  const fromOpen = document.getElementById('from-results') && !document.getElementById('from-results').hidden;
+  const toOpen = document.getElementById('to-results') && !document.getElementById('to-results').hidden;
+  dock.classList.toggle('picking-place', fromOpen || toOpen);
+  if (fromOpen) dock.dataset.picking = 'from';
+  else if (toOpen) dock.dataset.picking = 'to';
+  else delete dock.dataset.picking;
+}
 
 function hidePlaceResults() {
   window.clearTimeout(placeTimer);
@@ -1560,30 +1853,47 @@ function hidePlaceResults() {
     host.hidden = true;
     host.innerHTML = '';
   });
+  syncPlaceSheet();
 }
 
 function renderPlaceResults(which) {
   const input = document.getElementById(which === 'from' ? 'from-search' : 'to-search');
   const host = document.getElementById(which === 'from' ? 'from-results' : 'to-results');
   document.getElementById(which === 'from' ? 'to-results' : 'from-results').hidden = true;
-  const floorId = searchFloor[which];
-  const hits = routePlaces(input.value, floorId);
+  const buildingFloors = floorsForBuilding();
+  let floorId = searchFloor[which];
+  if (floorId && !buildingFloors.some((floor) => floor.id === floorId)) {
+    floorId = '';
+    searchFloor[which] = '';
+  }
+  const chosen = state.endpoints[which];
+  const typed = input.value.trim();
+  const query = chosen && typed === chosen.name ? '' : input.value;
+  const hits = routePlaces(query, floorId);
   host.innerHTML = '';
   host.hidden = false;
-  if (which === 'from') {
-    const here = document.createElement('button');
-    here.type = 'button';
-    here.className = 'place-hit place-here';
-    here.innerHTML = '<strong>Your location</strong><span>From your phone</span>';
-    here.addEventListener('mousedown', (event) => {
-      event.preventDefault();
-      useDeviceLocation();
-    });
-    host.appendChild(here);
-  }
+  syncPlaceSheet();
+  const bar = document.createElement('div');
+  bar.className = 'place-bar';
+  const head = document.createElement('div');
+  head.className = 'place-bar-head';
+  const title = document.createElement('span');
+  title.className = 'place-bar-title';
+  title.textContent = which === 'from' ? 'Choose a start' : 'Choose a destination';
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'place-close';
+  close.textContent = 'Close';
+  close.addEventListener('mousedown', (event) => {
+    event.preventDefault();
+    hidePlaceResults();
+    input.blur();
+  });
+  head.appendChild(title);
+  head.appendChild(close);
   const chips = document.createElement('div');
   chips.className = 'place-floors';
-  const choices = [{ id: '', name: 'All' }].concat(floors.map((floor) => ({ id: floor.id, name: floor.name })));
+  const choices = [{ id: '', name: 'All' }].concat(buildingFloors.map((floor) => ({ id: floor.id, name: floor.name })));
   choices.forEach((floor) => {
     const chip = document.createElement('button');
     chip.type = 'button';
@@ -1596,12 +1906,28 @@ function renderPlaceResults(which) {
     });
     chips.appendChild(chip);
   });
-  host.appendChild(chips);
+  bar.appendChild(head);
+  bar.appendChild(chips);
+  host.appendChild(bar);
+  const scroller = document.createElement('div');
+  scroller.className = 'place-scroll';
+  host.appendChild(scroller);
+  if (which === 'from') {
+    const here = document.createElement('button');
+    here.type = 'button';
+    here.className = 'place-hit place-here';
+    here.innerHTML = '<strong>Your location</strong><span>From your phone</span>';
+    here.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      useDeviceLocation();
+    });
+    scroller.appendChild(here);
+  }
   if (!hits.length) {
     const empty = document.createElement('div');
     empty.className = 'place-empty';
     empty.textContent = floorId ? 'No places on this floor.' : 'No places match.';
-    host.appendChild(empty);
+    scroller.appendChild(empty);
     return;
   }
   let group = '';
@@ -1612,7 +1938,7 @@ function renderPlaceResults(which) {
       const label = document.createElement('div');
       label.className = 'place-floor-label';
       label.textContent = where;
-      host.appendChild(label);
+      scroller.appendChild(label);
     }
     const row = document.createElement('button');
     row.type = 'button';
@@ -1628,7 +1954,7 @@ function renderPlaceResults(which) {
       focusEndpoint(ep);
       if (which === 'from' && !state.endpoints.to) document.getElementById('to-search').focus();
     });
-    host.appendChild(row);
+    scroller.appendChild(row);
   });
 }
 
@@ -1680,12 +2006,14 @@ function syncEndpointUi(which) {
 
 function setEndpoint(which, ep, opts) {
   if (which === 'from' && !(opts && opts.fromGps)) state.hereOwned = !!(opts && opts.keepClear) || ep != null;
+  if (ep && !(opts && opts.fromGps)) ask.back = false;
   state.endpoints[which] = ep;
   syncEndpointUi(which);
   updateStatus();
   syncPickGuide();
   if (!opts || !opts.skipRoute) maybeRoute();
   if (which === 'from' && !ep && deviceFix && !state.hereOwned) applyGpsStart();
+  syncAsk();
 }
 
 function focusEndpoint(ep) {
@@ -1718,28 +2046,26 @@ function syncPickGuide() {
   let text = '';
   let label = 'Pick on the map';
   if (tool === 'draw' && state.drawPhase) {
-    text = 'Now tap the destination on the map.';
-    label = 'Picking the destination';
+    text = t('toastDest');
+    label = t('destination');
   } else if (tool === 'draw') {
-    text = (from || to)
-      ? 'Tap a new start on the map, then the destination.'
-      : 'Tap the start on the map, then the destination.';
-    label = 'Pick start and destination';
+    text = t('toastBoth');
+    label = t('pickMap');
   } else if (tool === 'from') {
-    text = 'Tap the start on the map.';
-    label = 'Pick the start';
+    text = t('toastStart');
+    label = t('start');
   } else if (tool === 'to') {
-    text = 'Tap the destination on the map.';
-    label = 'Pick the destination';
+    text = t('toastTo');
+    label = t('destination');
   } else if (!from && !to) {
-    text = 'Map pin: tap a start, then a destination.';
-    label = 'Pick start and destination on the map';
+    text = t('toastBoth');
+    label = t('pickMap');
   } else if (!to) {
-    text = 'Start is set. Map pin: tap the destination.';
-    label = 'Pick the destination on the map';
+    text = t('toastTo');
+    label = t('destination');
   } else if (!from) {
-    text = 'Destination is set. Map pin: tap the start.';
-    label = 'Pick the start on the map';
+    text = t('toastStart');
+    label = t('start');
   }
   guide.textContent = text;
   guide.hidden = !text;
@@ -1763,9 +2089,9 @@ function setTool(tool) {
   syncPickGuide();
   const dock = document.getElementById('dock');
   if (dock) dock.classList.toggle('is-picking', next === 'from' || next === 'to' || next === 'draw');
-  if (next === 'from') IndoorUI.toast('Tap the start on the map.');
-  else if (next === 'to') IndoorUI.toast('Tap the destination on the map.');
-  else if (next === 'draw') IndoorUI.toast('Tap the start, then the destination.');
+  if (next === 'from') IndoorUI.toast(t('toastStart'));
+  else if (next === 'to') IndoorUI.toast(t('toastTo'));
+  else if (next === 'draw') IndoorUI.toast(t('toastBoth'));
 }
 
 function routeRef(ep) {
@@ -1785,7 +2111,7 @@ function calculate() {
   });
   if (result.error) {
     clearRoute();
-    IndoorUI.toast(result.error);
+    IndoorUI.toast(window.IndoorI18n ? IndoorI18n.error(result.error) : result.error);
     return;
   }
   showRoute(result);
@@ -1815,6 +2141,7 @@ function gpsHit(lngLat) {
   const meters = spatial.toMeters(lngLat[0], lngLat[1]);
   const hits = [];
   floors.forEach((floor) => {
+    if (buildingOfLevel(floor.id) !== state.building) return;
     const near = IndoorRoute.nearest(graph, floor.id, meters[0], meters[1]);
     if (near && near.node) hits.push({ floor: floor, d: near.d, node: near.node });
   });
@@ -1907,7 +2234,7 @@ function onLocate(pos) {
   if (!gpsHit(deviceFix.lngLat)) {
     if (!state.locateNoted) {
       state.locateNoted = true;
-      IndoorUI.toast('You are away from this building. Choose a start.');
+      IndoorUI.toast(t('toastAway'));
       if (!state.dockOpen) openDock('explore', true);
     }
     return;
@@ -1920,7 +2247,7 @@ function onLocateError(err) {
   if (denied) stopDeviceTrack();
   if (state.locateNoted || deviceFix) return;
   state.locateNoted = true;
-  IndoorUI.toast(denied ? 'Location permission was denied. Choose a start.' : 'Location is unavailable. Choose a start.');
+  IndoorUI.toast(denied ? t('toastDenied') : t('toastNoLoc'));
   if (!state.dockOpen) openDock('explore', true);
 }
 
@@ -2316,7 +2643,7 @@ function startNav() {
 function startFollow() {
   if (!spatial || !map) return;
   if (!deviceFix) {
-    IndoorUI.toast('Waiting for your location…');
+    IndoorUI.toast(t('toastWait'));
     return;
   }
   stopNav(false);
@@ -2370,7 +2697,7 @@ function stopNav(reframe) {
   const walked = nav.walked || 0;
   nav = null;
   if (scene3d) scene3d.clearWalkTrail();
-  if (reframe && walked >= 1) IndoorUI.toast('You walked ' + walkedText(walked));
+  if (reframe && walked >= 1) IndoorUI.toast(t('walked') + ' ' + (window.IndoorI18n ? IndoorI18n.meters(walkedText(walked)) : walkedText(walked)));
   document.getElementById('nav-banner').hidden = true;
   document.body.classList.remove('is-navigating');
   syncFollowButton();
@@ -2509,7 +2836,7 @@ function navTick(now) {
   }
   if (!nav.arrived && nav.d >= nav.total - (nav.mode === 'gps' ? 3 : 0.05)) {
     nav.arrived = true;
-    IndoorUI.toast('Arrived at ' + state.route.to.name);
+    IndoorUI.toast(t('arrived') + ' ' + tn(state.route.to.name));
   }
   paintNavBanner(pt);
   if (nav.mode === 'preview' && nav.arrived && nav.d >= nav.total) {
@@ -2557,6 +2884,7 @@ function navCamera(lngLat, elev, dt) {
 
 function navLine(step) {
   if (!step) return '';
+  if (window.IndoorI18n) return IndoorI18n.stepLine(step);
   if (step.kind === 'arrive') return 'Arrive at ' + (step.name || state.route.to.name);
   if (step.kind === 'transition') return (step.text || 'Change floors') + (step.level_name ? ' to ' + step.level_name : '');
   return step.text || 'Continue';
@@ -2570,27 +2898,28 @@ function paintNavBanner(pt) {
   let dist = '';
   let next = null;
   if (nav.arrived) {
-    main = { action: 'arrive', line: 'You have arrived at ' + state.route.to.name };
+    main = { action: 'arrive', line: t('youArrived') + ' ' + tn(state.route.to.name) };
   } else if (current.kind === 'transition') {
     main = { action: current.action, line: navLine(current) };
     next = steps[index + 1];
   } else if (nav.d - pt.piece.start < 1 && index === nav.pieces[0].step) {
     main = { action: current.action, line: navLine(current) };
-    dist = Math.max(1, Math.round(pt.piece.length)) + ' m';
+    dist = window.IndoorI18n ? IndoorI18n.meters(Math.max(1, Math.round(pt.piece.length)) + ' m') : Math.max(1, Math.round(pt.piece.length)) + ' m';
     next = steps[index + 1];
   } else {
     const up = steps[index + 1] || steps[steps.length - 1];
     main = { action: up.action, line: navLine(up) };
-    dist = 'In ' + Math.max(1, Math.round(pt.piece.start + pt.piece.length - nav.d)) + ' m';
+    dist = t('inDist') + ' ' + (window.IndoorI18n ? IndoorI18n.meters(Math.max(1, Math.round(pt.piece.start + pt.piece.length - nav.d)) + ' m') : Math.max(1, Math.round(pt.piece.start + pt.piece.length - nav.d)) + ' m');
     next = steps[index + 2];
   }
   let mode = '';
-  if (nav.mode === 'preview') mode = nav.fromPhone ? 'Preview. Your phone is not in this building.' : 'Preview of the route.';
-  else if (nav.lost) mode = 'Looking for your location…';
-  else if (Number.isFinite(nav.accuracy)) mode = 'GPS accuracy about ' + Math.round(nav.accuracy) + ' m' + (nav.accuracy > NAV_MAX_ACC ? ', waiting for a better fix' : '');
-  if (nav.mode === 'gps' && nav.raw && !nav.onRoute) mode = 'You are off the route' + (mode ? ' · ' + mode : '');
-  if (nav.mode === 'gps' && nav.raw) mode += (mode ? ' · ' : '') + 'Walked ' + walkedText(nav.walked);
-  const nextLine = next && !nav.arrived ? 'Then ' + navLine(next).charAt(0).toLowerCase() + navLine(next).slice(1) : '';
+  if (nav.mode === 'preview') mode = nav.fromPhone ? t('previewAway') : t('preview');
+  else if (nav.lost) mode = t('looking');
+  else if (Number.isFinite(nav.accuracy)) mode = t('gpsAbout') + ' ' + (window.IndoorI18n ? IndoorI18n.meters(Math.round(nav.accuracy) + ' m') : Math.round(nav.accuracy) + ' m') + (nav.accuracy > NAV_MAX_ACC ? (window.IndoorI18n && IndoorI18n.lang() === 'ar' ? '، ' : ', ') + t('gpsWait') : '');
+  if (nav.mode === 'gps' && nav.raw && !nav.onRoute) mode = t('offRoute') + (mode ? ' · ' + mode : '');
+  if (nav.mode === 'gps' && nav.raw) mode += (mode ? ' · ' : '') + t('walked') + ' ' + (window.IndoorI18n ? IndoorI18n.meters(walkedText(nav.walked)) : walkedText(nav.walked));
+  const follow = navLine(next);
+  const nextLine = next && !nav.arrived ? t('then') + ' ' + (window.IndoorI18n && IndoorI18n.lang() === 'ar' ? follow : follow.charAt(0).toLowerCase() + follow.slice(1)) : '';
   const key = [main.action, main.line, dist, nextLine, mode, nav.paused].join('|');
   if (key === nav.key) return;
   nav.key = key;
@@ -2656,8 +2985,9 @@ function resumeNavCamera() {
 
 function syncRouteSheet() {
   const dock = document.getElementById('dock');
-  const showing = !!state.route && state.dock === 'directions';
+  const showing = !!state.route && state.dock === 'directions' && !ask.back;
   dock.classList.toggle('has-route', showing);
+  dock.classList.toggle('route-edit', !!state.route && state.dock === 'directions' && !!ask.back);
   if (!showing) return;
   const body = dock.querySelector('.dock-body');
   if (body) body.scrollTop = 0;
@@ -2669,6 +2999,7 @@ function renderSteps() {
   const summary = document.getElementById('route-summary');
   host.innerHTML = '';
   if (!state.route) {
+    ask.back = false;
     summary.textContent = '';
     empty.hidden = false;
     document.getElementById('btn-replay').disabled = true;
@@ -2681,17 +3012,28 @@ function renderSteps() {
   const rides = state.route.steps.filter((step) => step.kind === 'transition');
   const extra = rides.reduce((sum, step) => sum + (step.mode === 'stair' ? 45 : step.mode === 'elevator' ? 30 : 20), 0);
   const minutes = Math.max(1, Math.round(meters / 1.2 / 60 + extra / 60));
-  const via = rides.length ? rides.map((step) => step.mode === 'stair' ? 'stairs' : step.mode).filter((mode, index, list) => list.indexOf(mode) === index).join(' and ') : 'the same floor';
+  const via = rides.length ? rides.map((step) => step.mode === 'stair' ? t('stairs') : step.mode === 'elevator' ? t('elevator') : t('escalator')).filter((mode, index, list) => list.indexOf(mode) === index).join(' ' + t('and') + ' ') : '';
   const ready = scene3d && scene3d.isDone() && !nav;
-  summary.innerHTML = '<div class="route-card"><strong class="route-ready"><span class="step-check">' + checkMark() + '</span>Route ready</strong><span>About ' + minutes + ' min · ' + meters + ' m</span><span>' + esc(state.route.from.name) + ' to ' + esc(state.route.to.name) + '</span><span>By ' + esc(via) + '</span></div>'
+  const about = t('aboutTime').replace('{min}', minutes).replace('{m}', meters);
+  summary.innerHTML = '<div class="route-card"><strong class="route-ready"><span class="step-check">' + checkMark() + '</span>' + esc(t('routeReady')) + '</strong><span>' + esc(about) + '</span><span>' + esc(tn(state.route.from.name)) + ' ' + esc(t('toWord')) + ' ' + esc(tn(state.route.to.name)) + '</span><span>' + esc(via ? t('by') + ' ' + via : t('sameFloor')) + '</span></div>'
     + '<p class="route-note">' + esc(arrivalNote()) + '</p>'
-    + (ready ? '<button type="button" class="nav-start" id="btn-nav-start"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7L12 2z"/></svg>Start</button>' : '');
+    + '<div class="route-actions"><button type="button" class="route-back" id="btn-route-back">' + esc(t('back')) + '</button>'
+    + (ready ? '<button type="button" class="nav-start" id="btn-nav-start"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7L12 2z"/></svg>' + esc(t('go')) + '</button>' : '')
+    + '</div>';
   const start = document.getElementById('btn-nav-start');
   if (start) start.addEventListener('click', startNav);
+  document.getElementById('btn-route-back').addEventListener('click', () => {
+    ask.back = true;
+    ask.mode = '';
+    ask.step = state.endpoints.from ? 1 : 0;
+    syncRouteSheet();
+    renderAsk();
+  });
   syncRouteSheet();
 }
 
 function arrivalNote() {
+  if (window.IndoorI18n && IndoorI18n.lang() === 'ar') return IndoorI18n.arrival(state.route);
   const dest = state.route.to.name || 'the destination';
   const moves = state.route.steps.filter((step) => step.kind !== 'arrive');
   if (!moves.length) return 'Follow the blue line to ' + dest + '.';
@@ -2759,9 +3101,9 @@ function goToStep(index) {
 }
 
 function updateStatus() {
-  document.getElementById('stat-floor').textContent = floorName(state.levelId);
+  document.getElementById('stat-floor').textContent = tn(floorName(state.levelId));
   const selected = featureById(state.selectedId);
-  document.getElementById('stat-place').textContent = selected ? selected.properties.name : '—';
+  document.getElementById('stat-place').textContent = selected ? tn(selected.properties.name) : '—';
   if (!state.route) {
     document.getElementById('stat-route').textContent = '—';
     return;
@@ -2795,17 +3137,56 @@ function checkMark() {
   return '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.2 16.2 4.8 11.8l-1.4 1.4L9.2 19 20.6 7.6 19.2 6.2z"/></svg>';
 }
 
+function syncLangButton() {
+  const btn = document.getElementById('btn-lang');
+  if (!btn) return;
+  const ar = window.IndoorI18n && IndoorI18n.lang() === 'ar';
+  btn.textContent = ar ? 'EN' : 'ع';
+  btn.setAttribute('aria-label', ar ? 'English' : 'العربية');
+}
+
+function refreshLocale() {
+  if (window.IndoorI18n) IndoorI18n.apply();
+  syncLangButton();
+  document.querySelectorAll('#filter-chips [data-kind], #filter-extra [data-kind]').forEach((btn) => {
+    btn.textContent = t('kind.' + btn.dataset.kind);
+  });
+  if (floors.length) syncFloorUi();
+  renderLayerChoices();
+  renderLegend();
+  renderExplore();
+  renderAsk();
+  renderSteps();
+  refreshLabels();
+  syncPickGuide();
+  updateStatus();
+  const fly = document.getElementById('ask-fly');
+  const flyInput = document.getElementById('ask-fly-input');
+  if (fly && !fly.hidden && flyInput) paintAskFly(flyInput.value);
+  if (state.selectedId) {
+    const feature = featureById(state.selectedId);
+    if (feature && document.getElementById('detail-panel').classList.contains('open')) openDetail(feature);
+  }
+  if (nav) nav.key = '';
+  const clean = document.getElementById('btn-clean');
+  if (clean) {
+    const hidden = document.body.classList.contains('is-clean');
+    clean.setAttribute('aria-label', hidden ? t('showLayers') : t('hideLayers'));
+    clean.title = clean.getAttribute('aria-label');
+  }
+}
+
 function syncDockTitle() {
   const el = document.getElementById('dock-title');
   if (!el) return;
   if (state.dockOpen && state.dock === 'explore') {
     const kind = window.IndoorPlaces && IndoorPlaces.KINDS.find((item) => item.id === state.exploreKind);
-    const name = !kind || kind.id === 'all' ? 'Places' : kind.label;
+    const name = !kind || kind.id === 'all' ? t('places') : t('kind.' + kind.id);
     const listed = document.querySelectorAll('#explore-list .explore-card').length;
     el.textContent = listed ? name + ' · ' + listed : name;
     return;
   }
-  el.textContent = DOCK_TITLES[state.dock] || 'Indoor';
+  el.textContent = t('dock.' + state.dock) || t('dock.indoor');
 }
 
 function openDock(name, keepOpen) {
@@ -2830,6 +3211,13 @@ function openDock(name, keepOpen) {
   });
   syncTools();
   syncGlass();
+  if (name === 'directions') {
+    ask.mode = '';
+    ask.back = false;
+    ask.step = state.endpoints.from && state.endpoints.to ? 2 : (state.endpoints.from ? 1 : 0);
+    syncAsk();
+    syncRouteSheet();
+  }
 }
 
 function clearSheetSize(dock) {
@@ -3089,19 +3477,20 @@ function onSearch(query) {
   if (!q || !collection) return;
   const hits = collection.features.filter((f) => {
     if (f.properties.feature_type !== 'unit') return false;
+    if (buildingOfLevel(f.properties.level_id) !== state.building) return false;
     const blob = placeBlob(f.properties);
     return blob.includes(q);
   }).slice(0, 8);
   if (!hits.length) {
-    host.innerHTML = '<div class="muted" style="padding:8px;">No places match.</div>';
+    host.innerHTML = '<div class="muted" style="padding:8px;">' + t('noMatch') + '</div>';
     return;
   }
   hits.forEach((f) => {
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'flyout-item';
-    const where = (f.properties.building || 'Building') + ' · ' + (f.properties.level_name || '');
-    row.innerHTML = '<span>' + esc(f.properties.name) + '</span><span class="hit-kind">' + esc(where) + '</span>';
+    const where = tn(f.properties.building || t('building')) + ' · ' + tn(f.properties.level_name || '');
+    row.innerHTML = '<span>' + esc(tn(f.properties.name)) + '</span><span class="hit-kind">' + esc(where) + '</span>';
     row.addEventListener('click', () => {
       selectFeature(f, true);
       IndoorUI.closeFlyouts();
@@ -3257,6 +3646,11 @@ function bindChrome() {
     const next = document.documentElement.getAttribute('data-theme') === 'glass' ? 'light' : 'glass';
     IndoorUI.applyTheme(next);
   });
+  document.getElementById('btn-lang').addEventListener('click', () => {
+    if (window.IndoorI18n) IndoorI18n.setLang(IndoorI18n.lang() === 'ar' ? 'en' : 'ar');
+  });
+  if (window.IndoorI18n) IndoorI18n.onChange(refreshLocale);
+  syncLangButton();
   document.getElementById('btn-close-detail').addEventListener('click', closeDetail);
   document.getElementById('btn-my-car').addEventListener('click', routeToCar);
   document.getElementById('btn-forget-car').addEventListener('click', forgetCar);
@@ -3320,6 +3714,7 @@ function bindChrome() {
   });
   bindPlaceSearch('from');
   bindPlaceSearch('to');
+  bindAsk();
   document.querySelectorAll('[data-vertical]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.vertical = btn.dataset.vertical;
@@ -3362,12 +3757,12 @@ function bindChrome() {
     if (scene3d) scene3d.setPlanVisible(!on);
     const btn = event.currentTarget;
     btn.setAttribute('aria-pressed', String(on));
-    btn.setAttribute('aria-label', on ? 'Show map layers' : 'Hide map layers');
+    btn.setAttribute('aria-label', on ? t('showLayers') : t('hideLayers'));
     btn.title = btn.getAttribute('aria-label');
   });
   document.getElementById('btn-replay').addEventListener('click', () => {
     if (!state.route) {
-      IndoorUI.toast('Get directions first.');
+      IndoorUI.toast(t('toastNeedRoute'));
       return;
     }
     startPlayback();
@@ -3740,7 +4135,7 @@ function startMap(style) {
       renderSteps();
       if (!info.skipped) {
         frameRouteExtent();
-        IndoorUI.toast('Arrived at ' + state.route.to.name);
+        IndoorUI.toast(t('arrived') + ' ' + tn(state.route.to.name));
       }
     }
   });

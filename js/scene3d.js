@@ -171,6 +171,7 @@ export function createScene3D(map, options) {
   world.add(siteGroup, shellGroup, networkGroup, pathGroup, routeGroup, pinGroup, userGroup);
 
   let activeLevel = null;
+  let levelGroup = null;
   let shellRank = 0;
   let solid = false;
   let shellCats = null;
@@ -624,7 +625,7 @@ export function createScene3D(map, options) {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
     const narrow = w <= 700;
-    const scale = Math.min(narrow ? 1 : 1.2, Math.max(0.32, Math.pow(2, map.getZoom() - 18.4))) * (narrow ? 0.86 : 1);
+    const scale = Math.min(narrow ? 1.05 : 1.2, Math.max(narrow ? 0.55 : 0.32, Math.pow(2, map.getZoom() - 18.4)));
     const ready = [];
     labels.forEach((label) => {
       const xy = toScene(label.lngLat);
@@ -641,8 +642,8 @@ export function createScene3D(map, options) {
       }
       const title = !!label.title;
       const textPx = title
-        ? Math.max(12, 11 * scale)
-        : (label.icon ? Math.max(11, 10 * scale) : Math.max(10, 9 * scale));
+        ? Math.max(narrow ? 14 : 12, 11 * scale)
+        : (label.icon ? Math.max(narrow ? 13 : 11, 10 * scale) : Math.max(narrow ? 12 : 10, 9 * scale));
       const padY = title ? 3 : 1;
       const padX = title ? 8 : 6;
       label.el.style.fontSize = textPx.toFixed(0) + 'px';
@@ -785,17 +786,25 @@ export function createScene3D(map, options) {
     return group;
   }
 
+  function levelOn(level) {
+    return !levelGroup || !level || levelGroup.has(level);
+  }
+
+  function setLevelGroup(ids) {
+    levelGroup = ids && ids.length ? new Set(ids) : null;
+  }
+
   function syncVisibility() {
     shellGroup.children.forEach((m) => {
       const d = m.userData;
       if (d.kind === 'base') {
-        m.visible = solid;
+        m.visible = solid && levelOn(d.level);
         return;
       }
       if (d.kind === 'plate') {
         const above = solid && d.rank > shellRank;
         const below = solid && d.rank < shellRank;
-        m.visible = solid && !above;
+        m.visible = solid && !above && levelOn(d.level);
         m.material.color.set(d.color == null ? 0xFFFFFF : d.color);
         m.material.opacity = below ? 0.78 : 1;
         m.material.transparent = below;
@@ -822,7 +831,7 @@ export function createScene3D(map, options) {
         return;
       }
       if (d.kind === 'facade') {
-        m.visible = solid && (d.rank || 0) <= shellRank;
+        m.visible = solid && (d.rank || 0) <= shellRank && levelOn(d.level);
         return;
       }
       if (d.kind === 'machine') {
@@ -2038,6 +2047,7 @@ export function createScene3D(map, options) {
     setHighlight,
     setSolid,
     setActiveLevel,
+    setLevelGroup,
     setRoute,
     clearRoute,
     setDraft,
