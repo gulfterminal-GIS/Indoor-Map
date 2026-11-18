@@ -458,7 +458,6 @@ export function createScene3D(map, options) {
 
   let userSvg = null;
   let userHeading = null;
-  let userAccuracy = null;
 
   function svgNode(name, attrs) {
     const node = document.createElementNS('http://www.w3.org/2000/svg', name);
@@ -545,15 +544,6 @@ export function createScene3D(map, options) {
         }));
       }
     }
-    const halo = userAccuracy ? Math.min(600, Math.max(22, userAccuracy / metersPerPixel())) : 22;
-    userSvg.appendChild(svgNode('circle', {
-      cx: cx.toFixed(1),
-      cy: cy.toFixed(1),
-      r: halo.toFixed(1),
-      fill: 'rgba(26, 115, 232, 0.14)',
-      stroke: halo > 22 ? 'rgba(26, 115, 232, 0.35)' : 'none',
-      'stroke-width': 1
-    }));
     userSvg.appendChild(svgNode('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: 12, fill: '#ffffff', style: 'filter: drop-shadow(0 1px 3px rgba(15, 30, 50, 0.45))' }));
     userSvg.appendChild(svgNode('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: 8.5, fill: '#1A73E8' }));
   }
@@ -794,6 +784,27 @@ export function createScene3D(map, options) {
     levelGroup = ids && ids.length ? new Set(ids) : null;
   }
 
+  function applyFloorDraw(mesh) {
+    const d = mesh.userData;
+    if (!mesh.material || (d.kind !== 'unit' && d.kind !== 'border')) return;
+    const flat = !solid;
+    mesh.material.depthTest = !flat;
+    mesh.material.depthWrite = !flat;
+    mesh.material.polygonOffset = false;
+    mesh.material.opacity = 1;
+    mesh.material.transparent = false;
+    const slot = d.slot || 0;
+    if (!flat) {
+      mesh.renderOrder = d.kind === 'border' ? 3 : 2;
+      return;
+    }
+    if (d.kind === 'border') mesh.renderOrder = 5000 + slot;
+    else if (highlighted(d)) mesh.renderOrder = 4000 + slot;
+    else if (d.category === 'shell') mesh.renderOrder = 1000 + slot;
+    else if (d.category === 'corridor') mesh.renderOrder = 2000 + slot;
+    else mesh.renderOrder = 3000 + slot;
+  }
+
   function syncVisibility() {
     shellGroup.children.forEach((m) => {
       const d = m.userData;
@@ -826,8 +837,7 @@ export function createScene3D(map, options) {
         return;
       }
       if (d.kind === 'border') {
-        const catOn = !d.category || !shellCats || shellCats[d.category] !== false;
-        m.visible = !solid && d.level === activeLevel && catOn;
+        m.visible = false;
         return;
       }
       if (d.kind === 'facade') {
@@ -840,16 +850,10 @@ export function createScene3D(map, options) {
         return;
       }
       const catOn = !d.category || !shellCats || shellCats[d.category] !== false;
-      m.visible = d.level === activeLevel && catOn;
+      m.visible = solid && d.level === activeLevel && catOn;
       if (m.material && m.material.color) {
         m.material.color.set(unitColor(d));
-        if (d.kind === 'unit') {
-          const dim = unitDimmed(d);
-          m.material.opacity = dim ? 0.22 : 1;
-          m.material.transparent = !!dim;
-          m.material.depthWrite = !dim;
-          m.material.needsUpdate = true;
-        }
+        if (d.kind === 'unit') applyFloorDraw(m);
       }
       applySkin(m);
     });
@@ -1112,13 +1116,23 @@ export function createScene3D(map, options) {
     }
   }
 
+  function mixHex(base, tint, amount) {
+    const channel = (color, shift) => (color >> shift) & 255;
+    const mix = (a, b) => Math.round(a + (b - a) * amount);
+    return (mix(channel(base, 16), channel(tint, 16)) << 16)
+      | (mix(channel(base, 8), channel(tint, 8)) << 8)
+      | mix(channel(base, 0), channel(tint, 0));
+  }
+
   function unitColor(d) {
     if (shellSelected != null && String(d.id) === String(shellSelected)) return 0xBBD3EA;
     if (shellHover != null && String(d.id) === String(shellHover)) return 0xDCE7F2;
-    if (solid && d.category === 'escalator') return 0x343B44;
-    if (solid && d.category === 'stair') return 0xC9BBA8;
-    if (solid && d.category === 'elevator') return 0x3E4854;
-    return d.color;
+    let color = d.color;
+    if (solid && d.category === 'escalator') color = 0x343B44;
+    else if (solid && d.category === 'stair') color = 0xC9BBA8;
+    else if (solid && d.category === 'elevator') color = 0x3E4854;
+    if (highlighted(d)) return mixHex(color, 0x14B8A6, 0.62);
+    return color;
   }
 
   function ringScene(ring) {
@@ -1440,6 +1454,7 @@ export function createScene3D(map, options) {
   function setShell(parts) {
     clearGroup(shellGroup);
     escalatorLive = false;
+    let depthSlot = 1;
     (parts || []).forEach((part) => {
       const ring = part.ring;
       if (!ring || ring.length < 4) return;
@@ -1469,8 +1484,9 @@ export function createScene3D(map, options) {
         if (tex) paintUVs(geo, tex.tile);
         const mesh = new THREE.Mesh(geo, basic(part.color));
         mesh.frustumCulled = false;
-        if (part.kind === 'unit') mesh.renderOrder = 2;
-        if (part.kind === 'border') mesh.renderOrder = 3;
+        const slot = depthSlot++;
+        const outline = [];
+        for (let i = 0; i < end; i++) outline.push(toScene(ring[i]));
         mesh.userData = {
           ownMaterial: true,
           level: part.level,
@@ -1479,7 +1495,10 @@ export function createScene3D(map, options) {
           category: part.category || '',
           id: part.id,
           color: part.color,
-          tex: tex ? tex.map : null
+          slot: slot,
+          tex: tex ? tex.map : null,
+          outline: outline,
+          elev: part.top || 0.3
         };
         if (tex && solid) mesh.material.map = tex.map;
         shellGroup.add(mesh);
@@ -1494,8 +1513,8 @@ export function createScene3D(map, options) {
     map.triggerRepaint();
   }
 
-  function unitDimmed(d) {
-    return !!(highlightIds && d.kind === 'unit' && d.category !== 'corridor' && d.id != null && !highlightIds.has(String(d.id)) && String(d.id) !== String(shellSelected));
+  function highlighted(d) {
+    return !!(highlightIds && d.kind === 'unit' && d.category !== 'corridor' && d.category !== 'shell' && d.id != null && highlightIds.has(String(d.id)));
   }
 
   function setHighlight(ids) {
@@ -1511,10 +1530,7 @@ export function createScene3D(map, options) {
       if (m.userData.kind !== 'unit' || !m.material) return;
       const d = m.userData;
       m.material.color.set(unitColor(d));
-      const dim = unitDimmed(d);
-      m.material.opacity = dim ? 0.22 : 1;
-      m.material.transparent = !!dim;
-      m.material.depthWrite = !dim;
+      applyFloorDraw(m);
     });
     map.triggerRepaint();
   }
@@ -1731,8 +1747,7 @@ export function createScene3D(map, options) {
     paintUserTrail();
   }
 
-  function setUser(lngLat, elev, heading, accuracy) {
-    userAccuracy = Number.isFinite(accuracy) ? accuracy : null;
+  function setUser(lngLat, elev, heading) {
     if (!lngLat) {
       clearUserTrail();
       if (userMark) userMark.visible = false;

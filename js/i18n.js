@@ -105,7 +105,7 @@
       nothingHere: 'Nothing of this type on this floor.',
       nothingTyped: 'Nothing matches that.',
       placesWord: 'places',
-      placeOne: '1 place on this floor',
+      placeOne: '1 place',
       car: 'Car',
       myCar: 'My car',
       mall: 'Mall',
@@ -324,7 +324,7 @@
       nothingHere: 'لا يوجد شيء من هذا النوع في هذا الطابق.',
       nothingTyped: 'لا شيء يطابق البحث.',
       placesWord: 'أماكن',
-      placeOne: 'مكان واحد في هذا الطابق',
+      placeOne: 'مكان واحد',
       car: 'سيارة',
       myCar: 'سيارتي',
       mall: 'المول',
@@ -625,10 +625,10 @@
 
   function countPlaces(n) {
     n = Number(n) || 0;
-    if (lang !== 'ar') return n + (n === 1 ? ' place' : ' places') + ' on this floor';
-    if (n === 1) return 'مكان واحد في هذا الطابق';
-    if (n === 2) return 'مكانان في هذا الطابق';
-    return n + ' أماكن في هذا الطابق';
+    if (lang !== 'ar') return n + (n === 1 ? ' place' : ' places');
+    if (n === 1) return 'مكان واحد';
+    if (n === 2) return 'مكانان';
+    return n + ' أماكن';
   }
 
   var ERRORS = {

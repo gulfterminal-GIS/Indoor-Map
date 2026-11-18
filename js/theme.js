@@ -31,7 +31,6 @@ IndoorUI.glassTargets = function () {
   return [
     document.getElementById('dock'),
     document.getElementById('map-toolbar'),
-    document.getElementById('filter-bar'),
     document.getElementById('status-bar'),
     document.getElementById('map-legend'),
     document.getElementById('detail-panel')

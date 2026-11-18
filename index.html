@@ -6,7 +6,7 @@
   <title>Indoor Map</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="vendor/maplibre/maplibre-gl.css" />
   <link rel="stylesheet" href="vendor/pannellum/pannellum.css" />
   <link rel="stylesheet" href="css/app.css" />
@@ -14,155 +14,177 @@
     try {
       var t = localStorage.getItem('indoor.ui.v1.theme');
       if (t === 'glass' || t === 'light') document.documentElement.setAttribute('data-theme', t);
-      var lang = localStorage.getItem('indoor.ui.v1.lang');
-      if (lang === 'ar') {
-        document.documentElement.lang = 'ar';
-        document.documentElement.dir = 'rtl';
-      }
     } catch (e) {}
   </script>
 </head>
 <body class="scale-off">
 <div id="app">
   <div id="map-wrap">
-    <aside id="dock" data-i18n-aria="workspace" aria-label="Workspace panel">
+    <aside id="dock" aria-label="Workspace panel">
       <div class="sheet-grab" aria-hidden="true"></div>
       <div class="dock-head">
         <div>
-          <div class="dock-kicker" data-i18n="kicker">Gulf Terminal · Indoor</div>
+          <div class="dock-kicker">Gulf Terminal · Indoor</div>
           <h2 id="dock-title">Floors</h2>
         </div>
-        <button class="icon-btn" id="btn-close-dock" type="button" data-i18n-aria="closePanel" aria-label="Close panel">×</button>
+        <button class="icon-btn" id="btn-close-dock" type="button" aria-label="Close panel">×</button>
       </div>
       <div class="dock-body">
         <div class="panel active" id="panel-explore">
-          <div class="seg explore-scope" role="group" data-i18n-aria="whichFloors" aria-label="Which floors">
-            <button class="seg-btn active" type="button" data-scope="here" data-i18n="thisFloor" aria-pressed="true">This floor</button>
-            <button class="seg-btn" type="button" data-scope="all" data-i18n="allFloors" aria-pressed="false">All floors</button>
+          <div class="seg explore-scope" role="group" aria-label="Which floors">
+            <button class="seg-btn active" type="button" data-scope="here" aria-pressed="true">This floor</button>
+            <button class="seg-btn" type="button" data-scope="all" aria-pressed="false">All floors</button>
           </div>
           <div id="explore-list"></div>
         </div>
 
         <div class="panel" id="panel-floors">
-          <div class="section-label" data-i18n="buildingFloors">Building floors</div>
-          <p class="muted" data-i18n="floorsNote">Switch the plan. Routes stay attached to the floor they use.</p>
+          <div class="section-label">Building floors</div>
+          <p class="muted">Switch the plan. Routes stay attached to the floor they use.</p>
           <div id="floor-list"></div>
         </div>
 
         <div class="panel" id="panel-layers">
-          <div class="section-label" data-i18n="onThisFloor">On this floor</div>
-          <p class="muted" data-i18n="layersNote">Rooms, halls, and circulation. Pathways are the main lines. Full network is every walk link.</p>
+          <div class="section-label">On this floor</div>
+          <p class="muted">Rooms, halls, and circulation. Pathways are the main lines. Full network is every walk link.</p>
           <div id="layer-list"></div>
         </div>
 
         <div class="panel" id="panel-directions">
-          <p class="muted" id="directions-lead" data-i18n="directionsLead">Choose where you are and where you want to go. The way appears on the map.</p>
+          <p class="muted" id="directions-lead">Choose where you are and where you want to go. The way appears on the map.</p>
           <div class="ask" id="ask">
             <div class="ask-progress" id="ask-progress" aria-hidden="true"><i></i><i></i></div>
             <p class="ask-kicker" id="ask-kicker">Question 1 of 2</p>
             <h3 class="ask-q" id="ask-q">Where are you?</h3>
             <div class="ask-body" id="ask-body"></div>
             <div class="ask-nav">
-              <button type="button" class="ask-prev" id="ask-prev" data-i18n="previous">Previous</button>
-              <button type="button" class="ask-next" id="ask-next" data-i18n="next">Next</button>
+              <button type="button" class="ask-prev" id="ask-prev">Previous</button>
+              <button type="button" class="ask-next" id="ask-next">Next</button>
             </div>
           </div>
           <div class="my-car" id="my-car" hidden>
             <div class="my-car-copy">
-              <strong id="my-car-title" data-i18n="yourCar">Your car</strong>
+              <strong id="my-car-title">Your car</strong>
               <span id="my-car-where"></span>
             </div>
             <div class="my-car-actions">
-              <button class="btn btn-primary" type="button" id="btn-my-car" data-i18n="routeToCar">Route to my car</button>
-              <button class="btn" type="button" id="btn-forget-car" data-i18n="forget">Forget</button>
-            </div>
-          </div>
-          <div class="route-ends">
-            <div class="ends-col">
-              <div class="field">
-                <label for="from-search" data-i18n="start">Start</label>
-                <div class="field-input">
-                  <input id="from-search" type="search" data-i18n-placeholder="whereAreYou" placeholder="Where are you?" autocomplete="off" spellcheck="false">
-                  <span class="field-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.2 16.2 4.8 11.8l-1.4 1.4L9.2 19 20.6 7.6 19.2 6.2z"/></svg></span>
-                  <button class="field-clear" id="btn-clear-here" type="button" data-i18n-aria="clearLocation" aria-label="Clear your location" hidden>
-                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.2 5 5 6.2 10.8 12 5 17.8 6.2 19 12 13.2 17.8 19 19 17.8 13.2 12 19 6.2 17.8 5 12 10.8 6.2 5z"/></svg>
-                  </button>
-                </div>
-                <div class="field-note" id="from-note"></div>
-              </div>
-              <div class="place-results" id="from-results" hidden></div>
-              <div class="field">
-                <label for="to-search" data-i18n="destination">Destination</label>
-                <div class="field-input">
-                  <input id="to-search" type="search" data-i18n-placeholder="whereTo" placeholder="Where do you want to go?" autocomplete="off" spellcheck="false">
-                  <span class="field-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.2 16.2 4.8 11.8l-1.4 1.4L9.2 19 20.6 7.6 19.2 6.2z"/></svg></span>
-                </div>
-                <div class="place-results" id="to-results" hidden></div>
-                <div class="field-note" id="to-note"></div>
-              </div>
+              <button class="btn btn-primary" type="button" id="btn-my-car">Route to my car</button>
+              <button class="btn" type="button" id="btn-forget-car">Forget</button>
             </div>
           </div>
           <div class="end-tools" role="group" aria-label="Route actions">
-            <button class="tool" id="btn-pick" type="button" data-i18n-aria="pickMap" aria-label="Pick on the map" aria-pressed="false">
+            <button class="tool" id="btn-pick" type="button" aria-label="Pick on the map" aria-pressed="false">
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg>
-              <span data-i18n="pick">Pick</span>
+              <span>Pick</span>
             </button>
-            <button class="tool" id="btn-replay" type="button" data-i18n-aria="replay" aria-label="Replay" disabled>
+            <button class="tool" id="btn-replay" type="button" aria-label="Replay" disabled>
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 5.5V2L6.5 6.8 12 11.5V8a5.2 5.2 0 1 1-4.7 7.4l-2.2.9A7.7 7.7 0 1 0 12 5.5z"/></svg>
-              <span data-i18n="replay">Replay</span>
+              <span>Replay</span>
             </button>
-            <button class="tool" id="btn-swap" type="button" data-i18n-aria="swap" aria-label="Swap start and destination">
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3 5 6.99h3V14h2V6.99h3L9 3z"/></svg>
-              <span data-i18n="swap">Swap</span>
-            </button>
-            <button class="tool" id="btn-clear-route" type="button" data-i18n-aria="clear" aria-label="Clear">
+            <button class="tool" id="btn-clear-route" type="button" aria-label="Clear">
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.2 5 5 6.2 10.8 12 5 17.8 6.2 19 12 13.2 17.8 19 19 17.8 13.2 12 19 6.2 17.8 5 12 10.8 6.2 5z"/></svg>
-              <span data-i18n="clear">Clear</span>
+              <span>Clear</span>
             </button>
           </div>
           <p class="pick-guide" id="pick-guide"></p>
-          <div class="section-label" id="vertical-label" data-i18n="changingFloors">Changing floors</div>
+          <div class="section-label" id="vertical-label">Changing floors</div>
           <div class="dock-tools seg-slide" role="group" aria-label="Stairs or elevator">
             <button class="tool active" type="button" data-vertical="either" aria-pressed="true">
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5 7 8h3.2v8H7l5 5.5 5-5.5h-3.2V8H17L12 2.5z"/></svg>
-              <span data-i18n="either">Either</span>
+              <span>Either</span>
             </button>
             <button class="tool" type="button" data-vertical="elevator" aria-pressed="false">
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 2h12v20H6V2zm2 2v16h8V4H8zm1.2 2.4h5.6L12 3.6 9.2 6.4zm0 11.2L12 20.4l2.8-2.8H9.2zM11 9h2v6h-2V9z"/></svg>
-              <span data-i18n="elevator">Elevator</span>
+              <span>Elevator</span>
             </button>
             <button class="tool" type="button" data-vertical="stair" aria-pressed="false">
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 21h6v-5h5v-5h5V6h2V4h-7v5h-5v5H5v5H3v2z"/></svg>
-              <span data-i18n="stairs">Stairs</span>
+              <span>Stairs</span>
             </button>
           </div>
           <div id="route-summary"></div>
           <div id="route-steps"></div>
-          <p class="muted" id="route-empty" data-i18n="chooseEnds">Choose a start and a destination.</p>
+          <p class="muted" id="route-empty">Choose a start and a destination.</p>
         </div>
       </div>
     </aside>
 
     <div id="viewDiv"></div>
     <div id="label-layer" aria-hidden="true"></div>
+    <svg id="highlight-overlay" aria-hidden="true"></svg>
     <svg id="route-overlay" aria-hidden="true"></svg>
     <div id="endpoint-labels" aria-hidden="true"></div>
     <svg id="user-overlay" aria-hidden="true"></svg>
 
     <div id="top-bar">
-      <div id="filter-bar" class="is-collapsed">
-        <button type="button" id="btn-lang" class="lang-btn" aria-label="العربية">ع</button>
-        <label for="explore-search" class="sr-only" data-i18n="findPlace">Find a place</label>
-        <input id="explore-search" type="search" data-i18n-placeholder="searchHint" placeholder="Coffee, pharmacy, cinema…" autocomplete="off" spellcheck="false">
-        <div id="filter-chips" role="group" aria-label="Place type"></div>
-        <div id="filter-extra-wrap">
-          <button type="button" class="kind-chip" id="filter-more" data-i18n="more" aria-expanded="false" aria-controls="filter-extra">More</button>
-          <div id="filter-extra" hidden></div>
+      <div id="dir-top">
+        <div class="dir-modes" role="tablist" aria-label="How to move">
+          <div class="dir-pill" id="dir-pill"></div>
+          <button type="button" id="btn-dir-close" aria-label="Close directions">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6z"/></svg>
+          </button>
+          <button type="button" class="dir-mode" data-mode="stair" data-vertical="stair" aria-label="Stairs">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 21h6v-5h5v-5h5V6h2V4h-7v5h-5v5H5v5H3v2z"/></svg>
+            <span>Stairs</span>
+          </button>
+          <button type="button" class="dir-mode" data-mode="elevator" data-vertical="elevator" aria-label="Elevator">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 2h12v20H6V2zm2 2v16h8V4H8zm1.2 2.4h5.6L12 3.6 9.2 6.4zm0 11.2L12 20.4l2.8-2.8H9.2zM11 9h2v6h-2V9z"/></svg>
+            <span>Elevator</span>
+          </button>
+          <button type="button" class="dir-mode on" data-mode="walk" data-vertical="either" aria-label="Walking" aria-pressed="true">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 4.2a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4zM8.6 8.4 6.2 22h2.2l1.6-7.2 2 1.8V22h2v-6.6l-1.9-1.8.5-2.6c1.6 1.2 3.2 1.8 4.6 1.8v-2c-1.5 0-2.8-.8-3.5-2l-.9-1.4c-.4-.6-.9-.9-1.6-.9-.2 0-.5.1-.7.1L5.4 8.2V13h2V9.4l1.2-.4z"/></svg>
+            <span>Walking</span>
+          </button>
         </div>
-        <button type="button" id="filter-count" hidden></button>
-        <button type="button" id="filter-toggle" aria-expanded="false" aria-controls="filter-chips" data-i18n-aria="showFilters" aria-label="Show filters">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.4 14.6 12 10l4.6 4.6L18 13.2 12 7.2 6 13.2l1.4 1.4z"/></svg>
-        </button>
+        <div class="dir-route">
+          <button type="button" id="btn-swap" class="dir-swap" aria-label="Swap start and destination">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99zM9 3 5 6.99h3V14h2V6.99h3z"/></svg>
+          </button>
+          <div class="dir-fields">
+            <div class="field">
+              <label class="sr-only" for="from-search">Start</label>
+              <div class="field-input">
+                <svg class="dir-mag" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 14 15.5l.3.3v.8l5 5 1.5-1.5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>
+                <input id="from-search" type="search" placeholder="Choose a start, or tap the map" autocomplete="off" spellcheck="false">
+                <span class="field-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.2 16.2 4.8 11.8l-1.4 1.4L9.2 19 20.6 7.6 19.2 6.2z"/></svg></span>
+                <button class="field-clear" id="btn-clear-here" type="button" aria-label="Clear your location" hidden>
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.2 5 5 6.2 10.8 12 5 17.8 6.2 19 12 13.2 17.8 19 19 17.8 13.2 12 19 6.2 17.8 5 12 10.8 6.2 5z"/></svg>
+                </button>
+              </div>
+              <div class="field-note" id="from-note"></div>
+              <div class="place-results" id="from-results" hidden></div>
+            </div>
+            <div class="field">
+              <label class="sr-only" for="to-search">Destination</label>
+              <div class="field-input">
+                <svg class="dir-mag" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 14 15.5l.3.3v.8l5 5 1.5-1.5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>
+                <input id="to-search" type="search" placeholder="Choose a destination" autocomplete="off" spellcheck="false">
+                <span class="field-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.2 16.2 4.8 11.8l-1.4 1.4L9.2 19 20.6 7.6 19.2 6.2z"/></svg></span>
+              </div>
+              <div class="field-note" id="to-note"></div>
+              <div class="place-results" id="to-results" hidden></div>
+            </div>
+          </div>
+          <div class="dir-rail" aria-hidden="true">
+            <span class="dir-origin"></span>
+            <span class="dir-dot"></span>
+            <span class="dir-dot"></span>
+            <span class="dir-dot"></span>
+            <svg class="dir-pin" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
+          </div>
+        </div>
+      </div>
+      <div id="filter-bar">
+        <label for="explore-search" class="sr-only">Find a place</label>
+        <input id="explore-search" type="search" placeholder="Coffee, pharmacy, cinema…" autocomplete="off" spellcheck="false">
+        <div id="filter-pills">
+          <div id="filter-chips" role="group" aria-label="Place type"></div>
+          <div id="filter-extra-wrap">
+            <button type="button" class="kind-chip" id="filter-more" aria-expanded="false" aria-controls="filter-extra">More</button>
+            <div id="filter-extra" hidden></div>
+          </div>
+          <button type="button" id="filter-count" hidden></button>
+        </div>
       </div>
       <div id="nav-banner" role="status" aria-live="polite" hidden>
         <span class="nav-icon" id="nav-icon" aria-hidden="true"></span>
@@ -173,10 +195,10 @@
           <span class="nav-mode" id="nav-mode"></span>
         </div>
         <div class="nav-actions">
-          <button type="button" class="nav-btn" id="btn-nav-recenter" data-i18n-aria="followAgain" aria-label="Follow again" hidden>
+          <button type="button" class="nav-btn" id="btn-nav-recenter" aria-label="Follow again" hidden>
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7L12 2z"/></svg>
           </button>
-          <button type="button" class="nav-btn nav-stop" id="btn-nav-stop" data-i18n-aria="stop" aria-label="Stop">
+          <button type="button" class="nav-btn nav-stop" id="btn-nav-stop" aria-label="Stop">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.2 5 5 6.2 10.8 12 5 17.8 6.2 19 12 13.2 17.8 19 19 17.8 13.2 12 19 6.2 17.8 5 12 10.8 6.2 5z"/></svg>
           </button>
         </div>
@@ -188,40 +210,40 @@
       <div class="toast" id="toast"></div>
     </div>
 
-    <div id="floor-pills" data-i18n-aria="floors" aria-label="Floors"></div>
+    <div id="floor-pills" aria-label="Floors"></div>
 
-    <button type="button" id="btn-clean" class="clean-fab" aria-pressed="false" data-i18n-aria="hideLayers" data-i18n-title="hideLayers" aria-label="Hide map layers" title="Hide map layers">
+    <button type="button" id="btn-clean" class="clean-fab" aria-pressed="false" aria-label="Hide map layers" title="Hide map layers">
       <svg class="icon-hide" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 6.5c3.8 0 7.2 2.1 8.9 5.5-.6 1.3-1.5 2.4-2.6 3.3l1.4 1.4c1.4-1.2 2.6-2.8 3.3-4.7C21.3 7.6 17 4.5 12 4.5c-1.3 0-2.6.2-3.8.6l1.7 1.7c.7-.2 1.4-.3 2.1-.3zM2.8 3.4 1.4 4.8l2.5 2.5C2.6 8.6 1.6 10.2 1 12c1.7 4.4 6 7.5 11 7.5 1.5 0 3-.3 4.3-.8l3.4 3.4 1.4-1.4L2.8 3.4zm7.1 7.1 3.6 3.6c-.4.2-.9.4-1.5.4a2.5 2.5 0 0 1-2.5-2.5c0-.6.2-1.1.4-1.5zM12 17.5c-3.8 0-7.2-2.1-8.9-5.5.6-1.3 1.5-2.4 2.3-3.2l2 2c-.3.7-.4 1.4-.4 2.2a5 5 0 0 0 7.2 4.5l1 1c-1 .4-2.1.6-3.2.6z"/></svg>
       <svg class="icon-show" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 4.5C7 4.5 2.7 7.6 1 12c1.7 4.4 6 7.5 11 7.5s9.3-3.1 11-7.5c-1.7-4.4-6-7.5-11-7.5zm0 12.5a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
     </button>
 
-    <button type="button" id="btn-follow" class="follow-fab" data-i18n-aria="followLocation" data-i18n-title="followLocation" aria-label="Follow my location" title="Follow my location" hidden>
+    <button type="button" id="btn-follow" class="follow-fab" aria-label="Follow my location" title="Follow my location" hidden>
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7L12 2z"/></svg>
     </button>
 
     <div id="map-legend">
-      <div class="legend-title" data-i18n="places">Places</div>
+      <div class="legend-title">Places</div>
       <div id="legendContent"></div>
     </div>
 
     <div id="bottom-stack">
       <div id="status-bar">
-        <div class="status-item"><span class="dot" style="background:#1565A8"></span><span class="k" data-i18n="floor">Floor</span><span class="v" id="stat-floor">—</span></div>
-        <div class="status-item"><span class="dot" style="background:#2F4A6D"></span><span class="k" data-i18n="place">Place</span><span class="v" id="stat-place">—</span></div>
-        <div class="status-item"><span class="dot" style="background:#15803D"></span><span class="k" data-i18n="route">Route</span><span class="v" id="stat-route">—</span></div>
-        <div class="status-item status-wide"><span class="dot" style="background:#6B778C"></span><span class="k" data-i18n="cursor">Cursor</span><span class="v" id="stat-coords">—</span></div>
-        <div class="status-item"><span class="dot" style="background:#C45C26"></span><span class="k" data-i18n="zoom">Zoom</span><span class="v" id="stat-zoom">—</span></div>
+        <div class="status-item"><span class="dot" style="background:#1565A8"></span><span class="k">Floor</span><span class="v" id="stat-floor">—</span></div>
+        <div class="status-item"><span class="dot" style="background:#2F4A6D"></span><span class="k">Place</span><span class="v" id="stat-place">—</span></div>
+        <div class="status-item"><span class="dot" style="background:#15803D"></span><span class="k">Route</span><span class="v" id="stat-route">—</span></div>
+        <div class="status-item status-wide"><span class="dot" style="background:#6B778C"></span><span class="k">Cursor</span><span class="v" id="stat-coords">—</span></div>
+        <div class="status-item"><span class="dot" style="background:#C45C26"></span><span class="k">Zoom</span><span class="v" id="stat-zoom">—</span></div>
       </div>
 
       <nav id="map-toolbar" aria-label="Map tools">
         <div class="tool-row">
           <button class="tool" type="button" data-dock="explore" aria-expanded="false">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg>
-            <span data-i18n="explore">Explore</span>
+            <span>Explore</span>
           </button>
           <button class="tool" type="button" data-dock="directions" aria-expanded="false">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 4.5 19.5 12 16.2l7.5 3.3L12 2zm0 5.2 3.2 8.3-3.2-1.4-3.2 1.4L12 7.2z"/></svg>
-            <span data-i18n="directions">Directions</span>
+            <span>Directions</span>
           </button>
           <button class="tool" type="button" id="btn-pano" aria-expanded="false" aria-controls="pano-menu">
             <svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 3.2a6.8 6.8 0 1 1 0 13.6 6.8 6.8 0 0 1 0-13.6z"/></svg>
@@ -233,52 +255,52 @@
           </button>
         </div>
         <div class="tool-sheet" id="tool-sheet">
-          <p class="tool-sheet-label" data-i18n="moreTools">More tools</p>
+          <p class="tool-sheet-label">More tools</p>
           <button class="tool" type="button" id="btn-legend" aria-pressed="false">
             <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5.5" cy="6.5" r="2"/><circle cx="5.5" cy="12" r="2"/><circle cx="5.5" cy="17.5" r="2"/><path d="M10 5.5h10v2H10v-2zm0 5.5h10v2H10v-2zm0 5.5h8v2h-8v-2z"/></svg>
-            <span data-i18n="legend">Legend</span>
+            <span>Legend</span>
           </button>
           <button class="tool" type="button" id="btn-search" aria-expanded="false" aria-controls="search-menu">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 9.5 16c1.6 0 3.1-.6 4.2-1.6l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"/></svg>
-            <span data-i18n="search">Search</span>
+            <span>Search</span>
           </button>
           <div class="tool-sep" aria-hidden="true"></div>
           <button class="tool" id="btn-home" type="button">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2.4 11.6h2.8V21h5.5v-6.4h3.6V21h5.5v-9.4h2.8L12 3z"/></svg>
-            <span data-i18n="home">Home</span>
+            <span>Home</span>
           </button>
           <button class="tool" id="btn-3d" type="button" aria-pressed="false">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5zm0 2.3L18.6 8 12 11.7 5.4 8 12 4.3zM5 9.7l6 3.4v6.6l-6-3.4V9.7zm8 10v-6.6l6-3.4v6.6l-6 3.4z"/></svg>
-            <span data-i18n="threeD">3D</span>
+            <span>3D</span>
           </button>
           <button class="tool" id="btn-basemap" type="button" aria-expanded="false" aria-controls="basemap-menu">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6.2 9.2 4l5.6 2.2L21 4v13.8l-6.2 2.2-5.6-2.2L3 20V6.2zm6.2-.2v11.2l5.6 2.2V8.2L9.2 6z"/></svg>
-            <span data-i18n="basemap">Basemap</span>
+            <span>Basemap</span>
           </button>
           <button class="tool" id="btn-zoom-in" type="button">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5z"/></svg>
-            <span data-i18n="zoomIn">Zoom in</span>
+            <span>Zoom in</span>
           </button>
           <button class="tool" id="btn-zoom-out" type="button">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 11h14v2H5v-2z"/></svg>
-            <span data-i18n="zoomOut">Zoom out</span>
+            <span>Zoom out</span>
           </button>
           <button class="tool" id="btn-fullscreen" type="button" aria-pressed="false">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h7v2H5v5H3V3zm11 0h7v7h-2V5h-5V3zM3 14h2v5h5v2H3v-7zm16 0h2v7h-7v-2h5v-5z"/></svg>
-            <span data-i18n="fullscreen">Fullscreen</span>
+            <span>Fullscreen</span>
           </button>
           <div class="tool-sep" aria-hidden="true"></div>
           <button class="tool" id="btn-data" type="button" aria-expanded="false" aria-controls="data-menu">
             <svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="6" rx="8" ry="3.2"/><path d="M4 6v5.2c0 1.8 3.6 3.2 8 3.2s8-1.4 8-3.2V6"/><path d="M4 11.2v5.2c0 1.8 3.6 3.2 8 3.2s8-1.4 8-3.2v-5.2"/></svg>
-            <span data-i18n="data">Data</span>
+            <span>Data</span>
           </button>
           <button class="tool" id="btn-scale" type="button" aria-pressed="false">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10h18v4H3v-4zm2 1v2h1v-2H5zm3 0v2h2v-2H8zm4 0v2h1v-2h-1zm3 0v2h2v-2h-2zm4 0v2h1v-2h-1z"/></svg>
-            <span data-i18n="scale">Scale</span>
+            <span>Scale</span>
           </button>
           <button class="tool" id="btn-theme" type="button" aria-pressed="false">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM11 1h2v3h-2V1zm0 19h2v3h-2v-3zM1 11h3v2H1v-2zm19 0h3v2h-3v-2zM3.8 3.8l1.4-1.4 2.1 2.1-1.4 1.4L3.8 3.8zm12.9 12.9 2.1 2.1-1.4 1.4-2.1-2.1 1.4-1.4zM3.8 20.2l2.1-2.1 1.4 1.4-2.1 2.1-1.4-1.4zm12.9-12.9 2.1-2.1 1.4 1.4-2.1 2.1-1.4-1.4z"/></svg>
-            <span data-i18n="theme">Theme</span>
+            <span>Theme</span>
           </button>
         </div>
       </nav>
@@ -286,14 +308,14 @@
 
     <div class="ask-fly" id="ask-fly" hidden>
       <div class="ask-fly-bar">
-        <button type="button" id="ask-fly-back" data-i18n="back">Back</button>
-        <input id="ask-fly-input" type="search" data-i18n-placeholder="searchPlaces" placeholder="Search places" autocomplete="off" spellcheck="false" enterkeyhint="search">
+        <button type="button" id="ask-fly-back">Back</button>
+        <input id="ask-fly-input" type="search" placeholder="Search places" autocomplete="off" spellcheck="false" enterkeyhint="search">
       </div>
       <div class="ask-fly-list" id="ask-fly-list"></div>
     </div>
 
     <div class="flyout search-flyout" id="search-menu">
-      <input type="search" id="search-input" data-i18n-placeholder="searchRoom" placeholder="Room, hall, or floor" autocomplete="off" />
+      <input type="search" id="search-input" placeholder="Room, hall, or floor" autocomplete="off" />
       <div id="search-results"></div>
     </div>
 
@@ -304,17 +326,17 @@
     </div>
 
     <div class="flyout data-flyout" id="data-menu">
-      <p class="muted" data-i18n="dataNote">Replace the plan for this session. The file must be WGS84 GeoJSON with level_id, pathway lines, and an origin.</p>
+      <p class="muted">Replace the plan for this session. The file must be WGS84 GeoJSON with <strong>level_id</strong>, pathway lines, and an <strong>origin</strong>.</p>
       <div class="form-field">
-        <span class="form-label" data-i18n="indoorFile">Indoor GeoJSON</span>
+        <span class="form-label">Indoor GeoJSON</span>
         <input type="file" id="data-file" class="sr-only" accept=".geojson,.json,application/geo+json,application/json" />
         <label for="data-file" class="file-picker" id="data-file-picker">
           <svg class="file-picker-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M10.4 4H4.2A2.2 2.2 0 0 0 2 6.2v11.6A2.2 2.2 0 0 0 4.2 20h15.6a2.2 2.2 0 0 0 2.2-2.2V8.4a2.2 2.2 0 0 0-2.2-2.2h-8.2L10.4 4z"/>
           </svg>
           <span class="file-picker-copy">
-            <strong id="data-file-name" data-i18n="chooseFile">Choose GeoJSON</strong>
-            <span data-i18n="fileKinds">levels, units, pathways</span>
+            <strong id="data-file-name">Choose GeoJSON</strong>
+            <span>levels, units, pathways</span>
           </span>
         </label>
       </div>
@@ -324,21 +346,21 @@
       <div class="sheet-grab" aria-hidden="true"></div>
       <div class="detail-head">
         <div>
-          <div class="detail-type" id="detail-type" data-i18n="place">Place</div>
+          <div class="detail-type" id="detail-type">Place</div>
           <h3 id="detail-title"></h3>
         </div>
-        <button class="icon-btn" id="btn-close-detail" type="button" data-i18n-aria="close" aria-label="Close">×</button>
+        <button class="icon-btn" id="btn-close-detail" type="button" aria-label="Close">×</button>
       </div>
       <div class="detail-body" id="detail-body"></div>
     </aside>
 
     <div id="pano-modal">
-      <div id="pano-view" role="dialog" aria-modal="true" data-i18n-aria="pano" aria-label="360 photo"></div>
+      <div id="pano-view" role="dialog" aria-modal="true" aria-label="360 photo"></div>
       <div class="pano-overlay">
-        <button class="pano-float" id="btn-pano-back" type="button" data-i18n-aria="back" aria-label="Back">
+        <button class="pano-float" id="btn-pano-back" type="button" aria-label="Back">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M15.4 4.6 8 12l7.4 7.4-1.4 1.4L5.2 12 14 3.2l1.4 1.4z"/></svg>
         </button>
-        <button class="pano-float" id="btn-pano-clear" type="button" data-i18n-aria="clear" aria-label="Clear">
+        <button class="pano-float" id="btn-pano-clear" type="button" aria-label="Clear">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4 17.6 5 12 10.6 6.4 5z"/></svg>
         </button>
       </div>
@@ -347,7 +369,7 @@
     <div id="loadingScreen" class="loading-screen" style="display:none">
       <div class="loading-card">
         <div class="loading-spinner"></div>
-        <div class="loading-text" id="loading-text" data-i18n="loading">Loading indoor map…</div>
+        <div class="loading-text" id="loading-text">Loading indoor map…</div>
       </div>
     </div>
   </div>
@@ -378,7 +400,6 @@
 </script>
 <script src="vendor/pannellum/pannellum.js"></script>
 <script src="js/theme.js"></script>
-<script src="js/i18n.js"></script>
 <script src="js/places.js"></script>
 <script src="js/route.js"></script>
 <script type="module" src="js/app.js"></script>

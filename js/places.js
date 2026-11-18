@@ -86,7 +86,7 @@
 
   var RULES = [
     ['park', /\bbay\b|parking/i],
-    ['rest', /restroom|toilet|washroom|\bwc\b|bathroom/i],
+    ['rest', /restroom|rest room|toilet|washroom|\bwc\b|bathroom/i],
     ['move', /elevator|lift|escalator|stair/i],
     ['eat', /cafe|coffee|restaurant|dining|food|kitchen|bakery|lounge|canteen/i],
     ['shop', /shop|store|boutique|market|retail|grocery|pharmacy/i],
@@ -109,7 +109,7 @@
   }
 
   var ICON_RULES = [
-    ['rest', /restroom|toilet|washroom|\bwc\b|bathroom|\bbath\b/i],
+    ['rest', /restroom|rest room|toilet|washroom|\bwc\b|bathroom|\bbath\b/i],
     ['elevator', /elevator|\blift\b/i],
     ['escalator', /escalator/i],
     ['stair', /stair/i],

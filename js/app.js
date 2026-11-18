@@ -1,13 +1,5 @@
 import { createScene3D } from './scene3d.js';
 
-function t(key) {
-  return window.IndoorI18n ? IndoorI18n.t(key) : key;
-}
-
-function tn(name) {
-  return window.IndoorI18n ? IndoorI18n.place(name) : (name || '');
-}
-
 const FLOOR_HEIGHT = 4;
 const BASE = 1.4;
 const SLAB = 0.25;
@@ -579,11 +571,83 @@ function applyFilters() {
   scene3d.setPathwaysVisible(state.layers.pathway);
   scene3d.setNetworkVisible(state.layers.network);
   scene3d.setUnitTone(state.selectedId, state.hoverId);
+  syncPlanLayer();
+}
+
+let planFlying = false;
+let frameToken = 0;
+
+function hexCss(color) {
+  return '#' + (color >>> 0).toString(16).padStart(6, '0');
+}
+
+function syncPlanLayer() {
+  if (!map || !map.getSource('indoor-plan')) return;
+  const show = !state.is3d && !document.body.classList.contains('is-clean');
+  if (map.getLayer('indoor-fill')) map.setLayoutProperty('indoor-fill', 'visibility', show ? 'visible' : 'none');
+  if (map.getLayer('indoor-line')) map.setLayoutProperty('indoor-line', 'visibility', show && !planFlying ? 'visible' : 'none');
+  const hl = new Set((highlightIds() || []).map(String));
+  const features = !collection ? [] : collection.features.filter((f) => {
+    const p = f.properties || {};
+    if (p.feature_type !== 'unit' || !f.geometry || p.level_id !== state.levelId) return false;
+    if (p.category && state.layers[p.category] === false) return false;
+    return true;
+  }).sort((a, b) => {
+    const rank = (feature) => {
+      const p = feature.properties || {};
+      if (hl.has(String(feature.id)) && p.category !== 'corridor' && p.category !== 'shell') return 3;
+      if (p.category === 'shell') return 0;
+      if (p.category === 'corridor') return 1;
+      return 2;
+    };
+    return rank(a) - rank(b);
+  }).map((f) => {
+    const p = f.properties;
+    const mixed = mixColor(parseInt(String(categoryMeta(p.category).fill).slice(1), 16), floorGround(p.rank || 0), 0.62);
+    const on = hl.has(String(f.id)) && p.category !== 'corridor' && p.category !== 'shell';
+    let fill = mixed;
+    if (state.selectedId != null && String(f.id) === String(state.selectedId)) fill = 0xBBD3EA;
+    else if (state.hoverId != null && String(f.id) === String(state.hoverId)) fill = 0xDCE7F2;
+    else if (on) fill = mixColor(mixed, 0x14B8A6, 0.62);
+    return {
+      type: 'Feature',
+      id: f.id,
+      geometry: f.geometry,
+      properties: { fill: hexCss(fill), hl: on ? 1 : 0 }
+    };
+  });
+  map.getSource('indoor-plan').setData({ type: 'FeatureCollection', features: features });
 }
 
 function ensureLayers() {
+  if (!map.getSource('indoor-plan')) {
+    map.addSource('indoor-plan', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  }
+  if (!map.getLayer('indoor-fill')) {
+    map.addLayer({
+      id: 'indoor-fill',
+      type: 'fill',
+      source: 'indoor-plan',
+      paint: { 'fill-color': ['get', 'fill'], 'fill-opacity': 1 }
+    });
+  }
+  if (!map.getLayer('indoor-line')) {
+    map.addLayer({
+      id: 'indoor-line',
+      type: 'line',
+      source: 'indoor-plan',
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': '#1B2A4A',
+        'line-width': 1.25
+      }
+    });
+  }
   if (!map.getLayer('scene3d')) map.addLayer(scene3d.layer);
+  if (map.getLayer('indoor-line')) map.moveLayer('indoor-line');
+  if (map.getLayer('indoor-fill') && map.getLayer('indoor-line')) map.moveLayer('indoor-fill', 'indoor-line');
   layersReady = true;
+  syncPlanLayer();
 }
 
 function footprintHigh() {
@@ -1027,7 +1091,7 @@ function syncFloorUi() {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'bookmark-pill' + (state.building === item[0] ? ' active' : '');
-    btn.textContent = t(item[0] === 'mall' ? 'mall' : 'apartment');
+    btn.textContent = item[1];
     btn.setAttribute('aria-pressed', state.building === item[0] ? 'true' : 'false');
     btn.addEventListener('click', () => setBuilding(item[0]));
     bar.appendChild(btn);
@@ -1042,8 +1106,8 @@ function syncFloorUi() {
     swatch.style.background = '#' + floorGround(floor.ordinal).toString(16).padStart(6, '0');
     btn.appendChild(swatch);
     btn.appendChild(document.createTextNode(floorCode(floor)));
-    btn.title = tn(floor.name);
-    btn.setAttribute('aria-label', tn(floor.name));
+    btn.title = floor.name;
+    btn.setAttribute('aria-label', floor.name);
     btn.setAttribute('aria-pressed', floor.id === state.levelId ? 'true' : 'false');
     btn.addEventListener('click', () => setFloor(floor.id, true));
     pills.appendChild(btn);
@@ -1056,7 +1120,7 @@ function syncFloorUi() {
     btn.type = 'button';
     btn.className = 'choice-btn' + (floor.id === state.levelId ? ' active' : '');
     const ground = '#' + floorGround(floor.ordinal).toString(16).padStart(6, '0');
-    btn.innerHTML = '<span class="floor-swatch" style="background:' + ground + ';margin-top:4px"></span><span class="choice-copy"><strong>' + esc(tn(floor.name)) + '</strong><span>' + unitsOn(floor.id).length + ' ' + t('placesWord') + '</span></span>';
+    btn.innerHTML = '<span class="floor-swatch" style="background:' + ground + ';margin-top:4px"></span><span class="choice-copy"><strong>' + esc(floor.name) + '</strong><span>' + unitsOn(floor.id).length + ' places</span></span>';
     btn.addEventListener('click', () => setFloor(floor.id, true));
     list.appendChild(btn);
   });
@@ -1072,7 +1136,7 @@ function renderLayerChoices() {
     btn.type = 'button';
     btn.className = 'choice-btn' + (state.layers[cat.id] ? ' active' : '');
     btn.setAttribute('aria-pressed', state.layers[cat.id] ? 'true' : 'false');
-    btn.innerHTML = '<span class="choice-copy"><strong>' + esc(t('cat.' + cat.id)) + '</strong><span>' + esc(cat.note ? t('catNote.' + cat.id) : t('showOnPlan')) + '</span></span>';
+    btn.innerHTML = '<span class="choice-copy"><strong>' + esc(cat.label) + '</strong><span>' + esc(cat.note || 'Show on the plan') + '</span></span>';
     btn.addEventListener('click', () => toggleLayer(cat.id));
     list.appendChild(btn);
   });
@@ -1080,7 +1144,7 @@ function renderLayerChoices() {
   labels.type = 'button';
   labels.className = 'choice-btn' + (state.layers.labels ? ' active' : '');
   labels.setAttribute('aria-pressed', state.layers.labels ? 'true' : 'false');
-  labels.innerHTML = '<span class="choice-copy"><strong>' + esc(t('labels')) + '</strong><span>' + esc(t('labelsNote')) + '</span></span>';
+  labels.innerHTML = '<span class="choice-copy"><strong>Labels</strong><span>Names on the plan</span></span>';
   labels.addEventListener('click', () => toggleLayer('labels'));
   list.appendChild(labels);
 }
@@ -1093,9 +1157,9 @@ function renderLegend() {
     row.type = 'button';
     row.className = 'legend-item' + (state.layers[cat.id] ? '' : ' off');
     if (cat.lineOnly) {
-      row.innerHTML = '<span class="legend-line" style="background:' + cat.line + '"></span><span class="legend-text">' + esc(t('cat.' + cat.id)) + '</span>';
+      row.innerHTML = '<span class="legend-line" style="background:' + cat.line + '"></span><span class="legend-text">' + esc(cat.label) + '</span>';
     } else {
-      row.innerHTML = '<span class="legend-swatch" style="background:' + cat.fill + ';border-color:' + cat.line + '"></span><span class="legend-text">' + esc(t('cat.' + cat.id)) + '</span>';
+      row.innerHTML = '<span class="legend-swatch" style="background:' + cat.fill + ';border-color:' + cat.line + '"></span><span class="legend-text">' + esc(cat.label) + '</span>';
     }
     row.addEventListener('click', () => toggleLayer(cat.id));
     host.appendChild(row);
@@ -1139,21 +1203,114 @@ function recenterOnFloor() {
   state._lastElev = elev;
 }
 
+function paddingClose(a, b) {
+  if (!a || !b) return false;
+  return Math.abs(a.top - b.top) < 2 && Math.abs(a.bottom - b.bottom) < 2 && Math.abs(a.left - b.left) < 2 && Math.abs(a.right - b.right) < 2;
+}
+
+function settlePlanFrame() {
+  if (!planFlying) return;
+  planFlying = false;
+  syncPlanLayer();
+}
+
+function frameBounds(bounds, duration, fillX, fillY, bearing) {
+  if (!bounds || !map || !spatial) return;
+  const box = routeViewBox();
+  const viewW = Math.max(120, box.right - box.left);
+  const viewH = Math.max(140, box.bottom - box.top);
+  const spanX = Math.max(8, Math.abs(bounds[1][0] - bounds[0][0]) * spatial.lonScale);
+  const spanY = Math.max(8, Math.abs(bounds[1][1] - bounds[0][1]) * spatial.latScale);
+  const zoom = Math.min(20.8, Math.max(17.4, Math.min(zoomForSpan(spanX, viewW * fillX), zoomForSpan(spanY, viewH * fillY))));
+  const mid = [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2];
+  const pitch = targetPitch();
+  state._lastElev = levelElev(state.levelId);
+  const center = cameraCenter(mid, state._lastElev, pitch, bearing);
+  const padding = {
+    top: box.top,
+    bottom: Math.max(0, box.height - box.bottom),
+    left: box.left,
+    right: Math.max(0, box.width - box.right)
+  };
+  const here = map.getCenter();
+  const shift = Math.hypot((here.lng - center[0]) * spatial.lonScale, (here.lat - center[1]) * spatial.latScale);
+  const zoomGap = Math.abs(map.getZoom() - zoom);
+  const token = ++frameToken;
+  if (zoomGap < 1.2 && shift < 40) {
+    settlePlanFrame();
+    if (paddingClose(map.getPadding(), padding) && zoomGap < 0.04 && shift < 0.8) return;
+    map.jumpTo({ center: center, zoom: zoom, bearing: bearing, pitch: pitch, padding: padding });
+    return;
+  }
+  planFlying = true;
+  syncPlanLayer();
+  map.easeTo({
+    center: center,
+    zoom: zoom,
+    bearing: bearing,
+    pitch: pitch,
+    padding: padding,
+    duration: duration == null ? motion(700) : duration,
+    essential: true,
+    easing: (t) => 1 - Math.pow(1 - t, 3)
+  });
+  map.once('moveend', () => {
+    if (token !== frameToken) return;
+    settlePlanFrame();
+  });
+}
+
+function frameApartment(duration, resetBearing) {
+  const features = collection.features.filter((f) => {
+    const p = f.properties || {};
+    return p.level_id === 'APT' && p.feature_type === 'unit' && p.category !== 'shell' && p.category !== 'corridor';
+  });
+  const bounds = boundsOfFeatures(features);
+  const bearing = state.is3d ? BEARING_3D : (resetBearing ? 0 : map.getBearing());
+  frameBounds(bounds, duration, 0.64, 0.52, bearing);
+}
+
+function padBounds(bounds, pad) {
+  if (!bounds) return null;
+  const dx = Math.abs(bounds[1][0] - bounds[0][0]) * pad;
+  const dy = Math.abs(bounds[1][1] - bounds[0][1]) * pad;
+  return [[bounds[0][0] - dx, bounds[0][1] - dy], [bounds[1][0] + dx, bounds[1][1] + dy]];
+}
+
+function frameHighlight() {
+  if (!collection || !map) return;
+  if (state.exploreKind === 'all') {
+    fitFloor(false, motion(650));
+    return;
+  }
+  const features = collection.features.filter((f) => {
+    const p = f.properties || {};
+    if (p.feature_type !== 'unit' || p.category === 'corridor' || p.category === 'shell') return false;
+    if (p.level_id !== state.levelId) return false;
+    return placeInfo(p).kind === state.exploreKind;
+  });
+  frameBounds(padBounds(boundsOfFeatures(features), 0.08), motion(650), 0.76, 0.64, map.getBearing());
+}
+
 function fitFloor(resetBearing, duration) {
+  if (state.levelId === 'APT') {
+    frameApartment(duration, resetBearing);
+    return;
+  }
   const features = collection.features.filter((f) => f.properties.level_id === state.levelId && f.properties.feature_type !== 'pathway');
   const bounds = boundsOfFeatures(features.length ? features : collection.features);
   if (!bounds) return;
-  fitShifted(bounds, levelElev(state.levelId), resetBearing ? (state.is3d ? BEARING_3D : 0) : map.getBearing(), duration);
+  fitShifted(bounds, levelElev(state.levelId), resetBearing ? (state.is3d ? BEARING_3D : 0) : map.getBearing(), duration, cameraPadding());
 }
 
-function fitShifted(bounds, elev, bearing, duration) {
+function fitShifted(bounds, elev, bearing, duration, padding) {
   const pitch = targetPitch();
   const shifted = cameraCenter(bounds[0], elev, pitch, bearing);
   const dx = shifted[0] - bounds[0][0];
   const dy = shifted[1] - bounds[0][1];
   state._lastElev = elev;
   map.fitBounds([[bounds[0][0] + dx, bounds[0][1] + dy], [bounds[1][0] + dx, bounds[1][1] + dy]], {
-    padding: cameraPadding(),
+    padding: padding || cameraPadding(),
     duration: duration == null ? motion(900) : duration,
     maxZoom: 20.4,
     pitch,
@@ -1187,7 +1344,7 @@ function refreshLabels() {
     if (p.feature_type !== 'level' || p.level_id !== state.levelId || !p.building || seen.has(p.building)) return;
     seen.add(p.building);
     list.push({
-      text: tn(p.building),
+      text: p.building,
       lngLat: IndoorRoute.describe(spatial, f).centroidLonLat,
       height: titleHeight,
       title: true,
@@ -1213,7 +1370,7 @@ function refreshLabels() {
       if (state.exploreKind !== 'all' && !selected && !car && !role && info.kind !== state.exploreKind) return;
       const circulation = p.category === 'escalator' || p.category === 'elevator' || p.category === 'stair';
       list.push({
-        text: car ? tn(p.name) + ' · ' + t('car') : tn(p.name),
+        text: car ? p.name + ' · Car' : p.name,
         lngLat: IndoorRoute.describe(spatial, f).centroidLonLat,
         height: height,
         selected: selected,
@@ -1244,6 +1401,7 @@ function paintSelect(id) {
     card.classList.toggle('is-current', id != null && card.dataset.place === String(id));
   });
   if (scene3d) scene3d.setUnitTone(state.selectedId, state.hoverId);
+  syncPlanLayer();
 }
 
 function servedText(group) {
@@ -1262,18 +1420,56 @@ function kindButton(kind) {
   btn.type = 'button';
   btn.className = 'kind-chip';
   btn.dataset.kind = kind.id;
-  btn.textContent = t('kind.' + kind.id);
+  btn.textContent = kind.label;
   return btn;
 }
 
-function ensureFilterChips() {
+function kindsInBuilding(building) {
+  const found = {};
+  if (!collection) return found;
+  collection.features.forEach((feature) => {
+    const p = feature.properties || {};
+    if (p.feature_type !== 'unit' || p.category === 'corridor' || p.category === 'shell') return;
+    if (buildingOfLevel(p.level_id) !== building) return;
+    const kind = placeInfo(p).kind;
+    if (!kind || kind === 'move' || kind === 'all') return;
+    found[kind] = true;
+  });
+  return found;
+}
+
+function syncBuildingFilters() {
+  const input = document.getElementById('explore-search');
+  const building = state.building === 'apartment' ? 'apartment' : 'mall';
+  if (input) {
+    input.placeholder = building === 'apartment' ? 'CEO, kitchen, bathroom…' : 'Coffee, pharmacy, cinema…';
+    if (input.dataset.building && input.dataset.building !== building) input.value = '';
+    input.dataset.building = building;
+  }
   const chips = document.getElementById('filter-chips');
   const extra = document.getElementById('filter-extra');
-  if (!chips || chips.childElementCount || !window.IndoorPlaces) return;
+  const moreWrap = document.getElementById('filter-extra-wrap');
+  if (!chips || !extra || !window.IndoorPlaces) return;
   const byId = {};
   IndoorPlaces.KINDS.forEach((kind) => { byId[kind.id] = kind; });
-  ['eat', 'shop', 'service', 'rest', 'park'].forEach((id) => { if (byId[id]) chips.appendChild(kindButton(byId[id])); });
-  ['see', 'room'].forEach((id) => { if (byId[id]) extra.appendChild(kindButton(byId[id])); });
+  const present = kindsInBuilding(building);
+  const order = ['eat', 'shop', 'service', 'rest', 'park', 'see', 'room'];
+  const ids = order.filter((id) => present[id] && byId[id]);
+  if (state.exploreKind !== 'all' && !present[state.exploreKind]) state.exploreKind = 'all';
+  const key = building + ':' + ids.join(',');
+  if (chips.dataset.kinds !== key) {
+    const primary = ids.slice(0, 5);
+    const rest = ids.slice(5);
+    chips.innerHTML = '';
+    extra.innerHTML = '';
+    primary.forEach((id) => chips.appendChild(kindButton(byId[id])));
+    rest.forEach((id) => extra.appendChild(kindButton(byId[id])));
+    chips.dataset.kinds = key;
+    extra.hidden = true;
+    const more = document.getElementById('filter-more');
+    if (more) more.setAttribute('aria-expanded', 'false');
+  }
+  if (moreWrap) moreWrap.hidden = !extra.childElementCount;
 }
 
 function highlightIds() {
@@ -1289,22 +1485,24 @@ function highlightIds() {
 
 function syncHighlight() {
   if (scene3d) scene3d.setHighlight(highlightIds());
+  syncPlanLayer();
 }
 
 function renderExplore() {
   const host = document.getElementById('explore-list');
   if (!host) return;
-  ensureFilterChips();
+  syncBuildingFilters();
   document.querySelectorAll('#filter-bar [data-kind]').forEach((btn) => {
     const on = btn.dataset.kind === state.exploreKind;
     btn.classList.toggle('active', on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
   const more = document.getElementById('filter-more');
-  const extraOn = state.exploreKind === 'see' || state.exploreKind === 'room';
+  const extraIds = Array.from(document.querySelectorAll('#filter-extra [data-kind]')).map((btn) => btn.dataset.kind);
+  const extraOn = extraIds.includes(state.exploreKind);
   if (more) {
-    const label = extraOn ? t('kind.' + state.exploreKind) : t('more');
-    more.textContent = label;
+    const kind = window.IndoorPlaces && IndoorPlaces.KINDS.find((item) => item.id === state.exploreKind);
+    more.textContent = extraOn && kind ? kind.label : 'More';
     more.classList.toggle('active', extraOn);
     more.setAttribute('aria-pressed', extraOn ? 'true' : 'false');
   }
@@ -1333,7 +1531,7 @@ function renderExplore() {
     if (placeBuilding !== state.building && !apartmentPlace) return false;
     if (placeBuilding === state.building && state.exploreScope === 'here' && p.level_id !== state.levelId) return false;
     if (!q) return true;
-    const blob = (p.name + ' ' + tn(p.name) + ' ' + info.about + ' ' + info.offers.join(' ') + ' ' + info.kindLabel + ' ' + t('kind.' + info.kind) + ' ' + (p.level_name || '') + ' ' + tn(p.level_name) + ' ' + (p.building || '') + ' ' + tn(p.building)).toLowerCase();
+    const blob = (p.name + ' ' + info.about + ' ' + info.offers.join(' ') + ' ' + info.kindLabel + ' ' + (p.level_name || '') + ' ' + (p.building || '')).toLowerCase();
     return blob.includes(q);
   });
   hits.sort((a, b) => {
@@ -1355,10 +1553,10 @@ function renderExplore() {
     const here = hits.filter((f) => f.properties.level_id === state.levelId).length;
     const show = state.exploreKind !== 'all' || !!q;
     countBtn.hidden = !show;
-    countBtn.textContent = window.IndoorI18n ? IndoorI18n.countPlaces(here) : (here + (here === 1 ? ' place' : ' places') + ' on this floor');
+    countBtn.textContent = window.IndoorI18n ? IndoorI18n.countPlaces(here) : (here + (here === 1 ? ' place' : ' places'));
   }
   if (!hits.length) {
-    host.innerHTML = '<p class="muted">' + (q ? t('nothingTyped') : t('nothingHere')) + '</p>';
+    host.innerHTML = '<p class="muted">' + (q ? 'Nothing matches that.' : 'Nothing of this type on this floor.') + '</p>';
     syncDockTitle();
     return;
   }
@@ -1367,15 +1565,13 @@ function renderExplore() {
     const p = f.properties;
     const info = placeInfo(p);
     const line = info.offers.length ? info.offers.join(', ') : (info.about || info.kindLabel);
-    const shownLine = window.IndoorI18n && IndoorI18n.lang() === 'ar' ? t('kind.' + info.kind) : line;
-    const whereName = p.level_name || floorName(p.level_id);
-    const where = state.exploreScope === 'all' || p.level_id !== state.levelId ? tn(whereName) : (window.IndoorI18n && IndoorI18n.lang() === 'ar' ? t('kind.' + info.kind) : info.kindLabel);
+    const where = state.exploreScope === 'all' || p.level_id !== state.levelId ? (p.level_name || floorName(p.level_id)) : info.kindLabel;
     const mine = carId !== '' && carId === String(f.id);
     const current = String(f.id) === String(state.selectedId) ? ' is-current' : '';
     return '<button type="button" class="explore-card' + current + '" style="animation-delay:' + (Math.min(index, 8) * 30) + 'ms" data-place="' + esc(f.id) + '">'
-      + '<span class="explore-main"><strong>' + esc(tn(p.name)) + '</strong><span>' + esc(shownLine) + '</span></span>'
-      + '<span class="explore-side">' + (mine ? '<span class="explore-car">' + esc(t('myCar')) + '</span>' : '')
-      + '<span class="crowd crowd-' + info.crowd + '">' + esc(window.IndoorI18n && IndoorI18n.lang() === 'ar' ? t('crowdShort.' + info.crowd) : info.crowdLabel.replace('Usually ', '')) + '</span><span class="explore-where">' + esc(where) + '</span></span>'
+      + '<span class="explore-main"><strong>' + esc(p.name) + '</strong><span>' + esc(line) + '</span></span>'
+      + '<span class="explore-side">' + (mine ? '<span class="explore-car">My car</span>' : '')
+      + '<span class="crowd crowd-' + info.crowd + '">' + esc(info.crowdLabel.replace('Usually ', '')) + '</span><span class="explore-where">' + esc(where) + '</span></span>'
       + '</button>';
   }).join('');
   syncDockTitle();
@@ -1385,8 +1581,8 @@ function openDetail(feature) {
   const p = feature.properties;
   const info = placeInfo(p);
   const described = IndoorRoute.describe(spatial, feature);
-  document.getElementById('detail-type').textContent = (window.IndoorI18n && IndoorI18n.lang() === 'ar' ? t('kind.' + info.kind) : info.kindLabel) + ' · ' + tn(p.level_name || floorName(p.level_id));
-  document.getElementById('detail-title').textContent = tn(p.name) || t('place');
+  document.getElementById('detail-type').textContent = info.kindLabel + ' · ' + (p.level_name || floorName(p.level_id));
+  document.getElementById('detail-title').textContent = p.name || 'Place';
   const area = described.area > 1 ? Math.round(described.area) + ' m²' : '';
   const serves = servedText(p.transition_group);
   let html = '';
@@ -1396,24 +1592,24 @@ function openDetail(feature) {
   }
   html += '<div class="crowd-block crowd-' + info.crowd + '"><span class="crowd-dots" aria-hidden="true">'
     + [1, 2, 3].map((n) => '<i' + (n <= info.crowdLevel ? ' class="on"' : '') + '></i>').join('')
-    + '</span><span><strong>' + esc(window.IndoorI18n && IndoorI18n.lang() === 'ar' ? t('crowdShort.' + info.crowd) : info.crowdLabel) + '</strong><span>' + esc(t('typical')) + '</span></span></div>';
+    + '</span><span><strong>' + esc(info.crowdLabel) + '</strong><span>A typical time here, not a live count.</span></span></div>';
   html += '<div class="stat-grid">'
-    + '<div class="stat"><div class="k">' + esc(t('floor')) + '</div><div class="v">' + esc(tn(p.level_name || floorName(p.level_id))) + '</div></div>'
-    + (area ? '<div class="stat"><div class="k">' + esc(t('area')) + '</div><div class="v">' + esc(area) + '</div></div>' : '')
+    + '<div class="stat"><div class="k">Floor</div><div class="v">' + esc(p.level_name || floorName(p.level_id)) + '</div></div>'
+    + (area ? '<div class="stat"><div class="k">Area</div><div class="v">' + esc(area) + '</div></div>' : '')
     + '</div>';
-  if (serves) html += '<div class="dealer-block"><p>' + esc(t('connects')) + ' ' + esc(serves) + '.</p></div>';
+  if (serves) html += '<div class="dealer-block"><p>Connects ' + esc(serves) + '.</p></div>';
   const parking = info.kind === 'park';
   const mine = parking && carFeatureId() === String(feature.id);
-  if (mine) html += '<p class="my-car-note">' + esc(t('carHere')) + '</p>';
+  if (mine) html += '<p class="my-car-note">Your car is in this bay.</p>';
   html += '<div class="detail-actions">'
-    + '<button class="btn btn-primary" type="button" id="detail-to">' + esc(t('directionsHere')) + '</button>';
+    + '<button class="btn btn-primary" type="button" id="detail-to">Directions here</button>';
   if (parking) {
     html += mine
-      ? '<button class="btn" type="button" id="detail-forget-car">' + esc(t('forgetCar')) + '</button>'
-      : '<button class="btn" type="button" id="detail-remember-car">' + esc(t('thisIsCar')) + '</button>';
+      ? '<button class="btn" type="button" id="detail-forget-car">Forget my car</button>'
+      : '<button class="btn" type="button" id="detail-remember-car">This is my car</button>';
   }
-  html += '<button class="btn" type="button" id="detail-from">' + esc(t('startFromHere')) + '</button>';
-  if (hasPano(feature)) html += '<button class="btn" type="button" id="detail-pano">' + esc(t('view360')) + '</button>';
+  html += '<button class="btn" type="button" id="detail-from">Start from here</button>';
+  if (hasPano(feature)) html += '<button class="btn" type="button" id="detail-pano">Look around in 360</button>';
   html += '</div>';
   document.getElementById('detail-body').innerHTML = html;
   document.getElementById('detail-panel').classList.add('open');
@@ -1566,7 +1762,7 @@ function queryParts(query) {
 
 function placeBlob(p) {
   const info = placeInfo(p);
-  return (p.name + ' ' + tn(p.name) + ' ' + info.about + ' ' + info.offers.join(' ') + ' ' + info.kindLabel + ' ' + t('kind.' + info.kind) + ' ' + (p.building || '') + ' ' + tn(p.building) + ' ' + (p.level_name || '') + ' ' + tn(p.level_name) + ' ' + (p.level_id || '')).toLowerCase();
+  return (p.name + ' ' + info.about + ' ' + info.offers.join(' ') + ' ' + info.kindLabel + ' ' + (p.building || '') + ' ' + (p.level_name || '') + ' ' + (p.level_id || '')).toLowerCase();
 }
 
 function capPlaces(list, floorId) {
@@ -1626,7 +1822,6 @@ function routePlaces(query, floorId) {
 }
 
 let placeTimer = 0;
-const searchFloor = { from: '', to: '' };
 const ask = { step: 0, mode: '', back: false };
 
 function askWhich() {
@@ -1667,8 +1862,8 @@ function renderAsk() {
   document.querySelectorAll('#ask-progress i').forEach((dot, index) => {
     dot.classList.toggle('on', ready || index <= ask.step);
   });
-  document.getElementById('ask-kicker').textContent = ready ? t('ready') : t('question') + ' ' + (ask.step + 1) + ' ' + t('of') + ' 2';
-  document.getElementById('ask-q').textContent = ready ? t('thisWay') : (ask.step === 0 ? t('whereYou') : t('whereGo'));
+  document.getElementById('ask-kicker').textContent = ready ? 'Ready' : 'Question ' + (ask.step + 1) + ' of 2';
+  document.getElementById('ask-q').textContent = ready ? 'This is the way.' : (ask.step === 0 ? 'Where are you?' : 'Where do you want to go?');
   const prev = document.getElementById('ask-prev');
   const next = document.getElementById('ask-next');
   prev.disabled = ask.step === 0 && !ask.mode;
@@ -1680,9 +1875,9 @@ function renderAsk() {
       const ep = state.endpoints[which];
       const card = document.createElement('div');
       card.className = 'ask-answer';
-      const where = ep ? (ep.source === 'gps' ? t('fromPhone') : [tn(ep.building), tn(ep.level_name)].filter(Boolean).join(' · ')) : '';
+      const where = ep ? (ep.source === 'gps' ? 'From your phone' : [ep.building, ep.level_name].filter(Boolean).join(' · ')) : '';
       const mark = ep && ep.source === 'gps' ? ASK_ICONS.here : (ep ? askIcon(placeInfo(ep).icon || 'pin') : ASK_ICONS.pin);
-      card.innerHTML = '<span class="ask-ico">' + mark + '</span><span class="ask-copy"><strong>' + esc(ep ? tn(ep.name) : t('notSet')) + '</strong><span>' + (which === 'from' ? t('start') : t('destination')) + (where ? ' · ' + esc(where) : '') + '</span></span>';
+      card.innerHTML = '<span class="ask-ico">' + mark + '</span><span class="ask-copy"><strong>' + esc(ep ? ep.name : 'Not set') + '</strong><span>' + (which === 'from' ? 'Start' : 'Destination') + (where ? ' · ' + esc(where) : '') + '</span></span>';
       body.appendChild(card);
     });
     return;
@@ -1692,21 +1887,21 @@ function renderAsk() {
   if (ask.mode === 'map') {
     const note = document.createElement('div');
     note.className = 'ask-answer';
-    note.innerHTML = '<span class="ask-ico">' + ASK_ICONS.pin + '</span><span class="ask-copy"><strong>' + esc(t('tapPlace')) + '</strong><span>' + esc(t('tapBack')) + '</span></span>';
+    note.innerHTML = '<span class="ask-ico">' + ASK_ICONS.pin + '</span><span class="ask-copy"><strong>Tap a place on the map</strong><span>Previous goes back to the choices.</span></span>';
     body.appendChild(note);
     return;
   }
   if (ep) {
     const card = document.createElement('div');
     card.className = 'ask-answer';
-    const detail = ep.source === 'gps' ? t('fromPhone') : [tn(ep.building), tn(ep.level_name)].filter(Boolean).join(' · ');
+    const detail = ep.source === 'gps' ? 'From your phone' : [ep.building, ep.level_name].filter(Boolean).join(' · ');
     const mark = ep.source === 'gps' ? ASK_ICONS.here : askIcon(placeInfo(ep).icon || 'room');
-    card.innerHTML = '<span class="ask-ico">' + mark + '</span><span class="ask-copy"><strong>' + esc(tn(ep.name)) + '</strong><span>' + esc(detail) + '</span></span>';
+    card.innerHTML = '<span class="ask-ico">' + mark + '</span><span class="ask-copy"><strong>' + esc(ep.name) + '</strong><span>' + esc(detail) + '</span></span>';
     body.appendChild(card);
     const change = document.createElement('button');
     change.type = 'button';
     change.className = 'ask-change';
-    change.textContent = t('change');
+    change.textContent = 'Change';
     change.addEventListener('click', () => {
       ask.mode = '';
       setEndpoint(which, null, { keepClear: which === 'from', skipRoute: true });
@@ -1716,10 +1911,10 @@ function renderAsk() {
     return;
   }
   if (which === 'from') {
-    body.appendChild(askChoice(t('useLocation'), t('blueDot'), ASK_ICONS.here, true, () => useDeviceLocation()));
+    body.appendChild(askChoice('Use my location', 'The blue dot on your phone', ASK_ICONS.here, true, () => useDeviceLocation()));
   }
-  body.appendChild(askChoice(t('searchPlace'), t('openList'), ASK_ICONS.search, false, () => openAskFly()));
-  body.appendChild(askChoice(t('tapMap'), t('seeRoom'), ASK_ICONS.pin, false, () => {
+  body.appendChild(askChoice('Search for a place', 'Open the full list', ASK_ICONS.search, false, () => openAskFly()));
+  body.appendChild(askChoice('Tap it on the map', 'Choose a room you can see', ASK_ICONS.pin, false, () => {
     ask.mode = 'map';
     hidePlaceResults();
     if (state.tool !== which) setTool(which);
@@ -1747,7 +1942,7 @@ function paintAskFly(query) {
   const list = askCatalog(query);
   host.innerHTML = '';
   if (!list.length) {
-    host.innerHTML = '<p class="ask-fly-empty">' + (query.trim() ? t('noMatch') : t('noPlaces')) + '</p>';
+    host.innerHTML = '<p class="ask-fly-empty">' + (query.trim() ? 'No places match.' : 'No places on this floor.') + '</p>';
     return;
   }
   list.forEach((feature, index) => {
@@ -1757,8 +1952,8 @@ function paintAskFly(query) {
     row.type = 'button';
     row.className = 'ask-fly-hit';
     row.style.animationDelay = Math.min(index, 8) * 30 + 'ms';
-    const where = [tn(p.level_name || floorName(p.level_id)), window.IndoorI18n && IndoorI18n.lang() === 'ar' ? t('kind.' + info.kind) : info.kindLabel].filter(Boolean).join(' · ');
-    row.innerHTML = '<span class="ask-ico">' + askIcon(info.icon) + '</span><span class="ask-copy"><strong>' + esc(tn(p.name)) + '</strong><span>' + esc(where) + '</span></span>';
+    const where = [p.level_name || floorName(p.level_id), info.kindLabel].filter(Boolean).join(' · ');
+    row.innerHTML = '<span class="ask-ico">' + askIcon(info.icon) + '</span><span class="ask-copy"><strong>' + esc(p.name) + '</strong><span>' + esc(where) + '</span></span>';
     row.addEventListener('click', () => chooseAskPlace(feature));
     host.appendChild(row);
   });
@@ -1860,55 +2055,13 @@ function renderPlaceResults(which) {
   const input = document.getElementById(which === 'from' ? 'from-search' : 'to-search');
   const host = document.getElementById(which === 'from' ? 'from-results' : 'to-results');
   document.getElementById(which === 'from' ? 'to-results' : 'from-results').hidden = true;
-  const buildingFloors = floorsForBuilding();
-  let floorId = searchFloor[which];
-  if (floorId && !buildingFloors.some((floor) => floor.id === floorId)) {
-    floorId = '';
-    searchFloor[which] = '';
-  }
   const chosen = state.endpoints[which];
   const typed = input.value.trim();
   const query = chosen && typed === chosen.name ? '' : input.value;
-  const hits = routePlaces(query, floorId);
+  const hits = routePlaces(query, '');
   host.innerHTML = '';
   host.hidden = false;
   syncPlaceSheet();
-  const bar = document.createElement('div');
-  bar.className = 'place-bar';
-  const head = document.createElement('div');
-  head.className = 'place-bar-head';
-  const title = document.createElement('span');
-  title.className = 'place-bar-title';
-  title.textContent = which === 'from' ? 'Choose a start' : 'Choose a destination';
-  const close = document.createElement('button');
-  close.type = 'button';
-  close.className = 'place-close';
-  close.textContent = 'Close';
-  close.addEventListener('mousedown', (event) => {
-    event.preventDefault();
-    hidePlaceResults();
-    input.blur();
-  });
-  head.appendChild(title);
-  head.appendChild(close);
-  const chips = document.createElement('div');
-  chips.className = 'place-floors';
-  const choices = [{ id: '', name: 'All' }].concat(buildingFloors.map((floor) => ({ id: floor.id, name: floor.name })));
-  choices.forEach((floor) => {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'place-floor' + (floor.id === floorId ? ' active' : '');
-    chip.textContent = floor.name;
-    chip.addEventListener('mousedown', (event) => {
-      event.preventDefault();
-      searchFloor[which] = floor.id;
-      renderPlaceResults(which);
-    });
-    chips.appendChild(chip);
-  });
-  bar.appendChild(head);
-  bar.appendChild(chips);
-  host.appendChild(bar);
   const scroller = document.createElement('div');
   scroller.className = 'place-scroll';
   host.appendChild(scroller);
@@ -1926,7 +2079,7 @@ function renderPlaceResults(which) {
   if (!hits.length) {
     const empty = document.createElement('div');
     empty.className = 'place-empty';
-    empty.textContent = floorId ? 'No places on this floor.' : 'No places match.';
+    empty.textContent = 'No places match.';
     scroller.appendChild(empty);
     return;
   }
@@ -2046,26 +2199,28 @@ function syncPickGuide() {
   let text = '';
   let label = 'Pick on the map';
   if (tool === 'draw' && state.drawPhase) {
-    text = t('toastDest');
-    label = t('destination');
+    text = 'Now tap the destination on the map.';
+    label = 'Picking the destination';
   } else if (tool === 'draw') {
-    text = t('toastBoth');
-    label = t('pickMap');
+    text = (from || to)
+      ? 'Tap a new start on the map, then the destination.'
+      : 'Tap the start on the map, then the destination.';
+    label = 'Pick start and destination';
   } else if (tool === 'from') {
-    text = t('toastStart');
-    label = t('start');
+    text = 'Tap the start on the map.';
+    label = 'Pick the start';
   } else if (tool === 'to') {
-    text = t('toastTo');
-    label = t('destination');
+    text = 'Tap the destination on the map.';
+    label = 'Pick the destination';
   } else if (!from && !to) {
-    text = t('toastBoth');
-    label = t('pickMap');
+    text = 'Map pin: tap a start, then a destination.';
+    label = 'Pick start and destination on the map';
   } else if (!to) {
-    text = t('toastTo');
-    label = t('destination');
+    text = 'Start is set. Map pin: tap the destination.';
+    label = 'Pick the destination on the map';
   } else if (!from) {
-    text = t('toastStart');
-    label = t('start');
+    text = 'Destination is set. Map pin: tap the start.';
+    label = 'Pick the start on the map';
   }
   guide.textContent = text;
   guide.hidden = !text;
@@ -2089,9 +2244,9 @@ function setTool(tool) {
   syncPickGuide();
   const dock = document.getElementById('dock');
   if (dock) dock.classList.toggle('is-picking', next === 'from' || next === 'to' || next === 'draw');
-  if (next === 'from') IndoorUI.toast(t('toastStart'));
-  else if (next === 'to') IndoorUI.toast(t('toastTo'));
-  else if (next === 'draw') IndoorUI.toast(t('toastBoth'));
+  if (next === 'from') IndoorUI.toast('Tap the start on the map.');
+  else if (next === 'to') IndoorUI.toast('Tap the destination on the map.');
+  else if (next === 'draw') IndoorUI.toast('Tap the start, then the destination.');
 }
 
 function routeRef(ep) {
@@ -2111,7 +2266,7 @@ function calculate() {
   });
   if (result.error) {
     clearRoute();
-    IndoorUI.toast(window.IndoorI18n ? IndoorI18n.error(result.error) : result.error);
+    IndoorUI.toast(result.error);
     return;
   }
   showRoute(result);
@@ -2196,7 +2351,7 @@ function applyGpsStart() {
   }, { fromGps: true, skipRoute: !resume && (!state.endpoints.to || !!state.route) });
   if (!first) return;
   if (state.levelId !== hit.floor.id) setFloor(hit.floor.id, false);
-  if (node.lonlat) flyTo(node.lonlat, null, hit.floor.id);
+  if (node.lonlat && resume) flyTo(node.lonlat, null, hit.floor.id);
   askDestination();
 }
 
@@ -2234,7 +2389,7 @@ function onLocate(pos) {
   if (!gpsHit(deviceFix.lngLat)) {
     if (!state.locateNoted) {
       state.locateNoted = true;
-      IndoorUI.toast(t('toastAway'));
+      IndoorUI.toast('You are away from this building. Choose a start.');
       if (!state.dockOpen) openDock('explore', true);
     }
     return;
@@ -2247,7 +2402,7 @@ function onLocateError(err) {
   if (denied) stopDeviceTrack();
   if (state.locateNoted || deviceFix) return;
   state.locateNoted = true;
-  IndoorUI.toast(denied ? t('toastDenied') : t('toastNoLoc'));
+  IndoorUI.toast(denied ? 'Location permission was denied. Choose a start.' : 'Location is unavailable. Choose a start.');
   if (!state.dockOpen) openDock('explore', true);
 }
 
@@ -2396,27 +2551,46 @@ function routeViewBox() {
   return { top: top, bottom: bottom, left: left, right: right, width: width, height: height };
 }
 
-function frameRouteExtent(duration, resetBearing) {
-  if (!state.route || !map) return;
+function routeBounds() {
+  if (!state.route) return null;
   const lines = state.route.segments.map((segment) => segment.coordinates).filter((line) => line && line.length);
   if (state.route.from && state.route.from.lonlat) lines.push([state.route.from.lonlat]);
   if (state.route.to && state.route.to.lonlat) lines.push([state.route.to.lonlat]);
-  const bounds = boundsOfLines(lines);
+  return boundsOfLines(lines);
+}
+
+function frameRouteExtent(duration, resetBearing) {
+  const bounds = routeBounds();
   if (!bounds) return;
-  const box = routeViewBox();
-  const viewW = Math.max(120, box.right - box.left);
-  const viewH = Math.max(140, box.bottom - box.top);
-  const spanX = Math.abs(bounds[1][0] - bounds[0][0]) * spatial.lonScale;
-  const spanY = Math.abs(bounds[1][1] - bounds[0][1]) * spatial.latScale;
-  const zoom = Math.min(20.2, Math.max(18.2, Math.min(zoomForSpan(spanX, viewW * 0.72), zoomForSpan(spanY, viewH * 0.72))));
-  const mid = [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2];
   const bearing = state.is3d ? BEARING_3D : (resetBearing ? 0 : map.getBearing());
+  frameBounds(padBounds(bounds, 0.22), duration, 0.7, 0.7, bearing);
+}
+
+let routeGlideAt = 0;
+
+function endRouteGlide() {
+  if (!routeGlideAt) return;
+  routeGlideAt = 0;
+  settlePlanFrame();
+}
+
+function followCamera(info) {
+  state._lastElev = info.elev;
+  if (!state.follow || !info.lngLat || !map || !spatial) return;
+  const now = performance.now();
+  const dt = routeGlideAt ? Math.min(0.05, (now - routeGlideAt) / 1000) : 1 / 60;
+  routeGlideAt = now;
+  if (map.isMoving()) map.stop();
+  const box = routeViewBox();
   const pitch = targetPitch();
-  state.follow = false;
-  state._lastElev = levelElev(state.levelId);
-  map.easeTo({
-    center: cameraCenter(mid, state._lastElev, pitch, bearing),
-    zoom: zoom,
+  const bearing = map.getBearing();
+  const target = cameraCenter(info.lngLat, info.elev == null ? levelElev(state.levelId) : info.elev, pitch, bearing);
+  const here = map.getCenter();
+  const zoom = map.getZoom();
+  const glide = 1 - Math.exp(-dt * 8);
+  map.jumpTo({
+    center: [here.lng + (target[0] - here.lng) * glide, here.lat + (target[1] - here.lat) * glide],
+    zoom: zoom + (ROUTE_ZOOM - zoom) * (1 - Math.exp(-dt * 5)),
     bearing: bearing,
     pitch: pitch,
     padding: {
@@ -2424,10 +2598,7 @@ function frameRouteExtent(duration, resetBearing) {
       bottom: Math.max(0, box.height - box.bottom),
       left: box.left,
       right: Math.max(0, box.width - box.right)
-    },
-    duration: duration == null ? motion(900) : duration,
-    essential: true,
-    easing: (t) => 1 - Math.pow(1 - t, 3)
+    }
   });
 }
 
@@ -2437,32 +2608,19 @@ function startPlayback() {
   hideRideCaption();
   stopNav(false);
   scene3d.reset();
-  scene3d.play();
   renderSteps();
   if (state.levelId !== state.route.from.level_id) setFloor(state.route.from.level_id, false);
   if (reducedMotion()) {
     state.follow = false;
+    scene3d.play();
     scene3d.finish();
     frameRouteExtent(0);
     return;
   }
+  scene3d.play();
   state.follow = true;
-}
-
-function followCamera(info) {
-  state._lastElev = info.elev;
-  if (!state.follow) return;
-  const pitch = map.getPitch();
-  const bearing = map.getBearing();
-  const target = cameraCenter(info.lngLat, info.elev, pitch, bearing);
-  const c = map.getCenter();
-  const k = 0.28;
-  const zoom = map.getZoom();
-  const want = Math.max(zoom, ROUTE_ZOOM);
-  map.jumpTo({
-    center: [c.lng + (target[0] - c.lng) * k, c.lat + (target[1] - c.lat) * k],
-    zoom: zoom + (want - zoom) * 0.08
-  });
+  routeGlideAt = 0;
+  settlePlanFrame();
 }
 
 let nav = null;
@@ -2643,7 +2801,7 @@ function startNav() {
 function startFollow() {
   if (!spatial || !map) return;
   if (!deviceFix) {
-    IndoorUI.toast(t('toastWait'));
+    IndoorUI.toast('Waiting for your location…');
     return;
   }
   stopNav(false);
@@ -2697,7 +2855,7 @@ function stopNav(reframe) {
   const walked = nav.walked || 0;
   nav = null;
   if (scene3d) scene3d.clearWalkTrail();
-  if (reframe && walked >= 1) IndoorUI.toast(t('walked') + ' ' + (window.IndoorI18n ? IndoorI18n.meters(walkedText(walked)) : walkedText(walked)));
+  if (reframe && walked >= 1) IndoorUI.toast('You walked ' + walkedText(walked));
   document.getElementById('nav-banner').hidden = true;
   document.body.classList.remove('is-navigating');
   syncFollowButton();
@@ -2836,7 +2994,7 @@ function navTick(now) {
   }
   if (!nav.arrived && nav.d >= nav.total - (nav.mode === 'gps' ? 3 : 0.05)) {
     nav.arrived = true;
-    IndoorUI.toast(t('arrived') + ' ' + tn(state.route.to.name));
+    IndoorUI.toast('Arrived at ' + state.route.to.name);
   }
   paintNavBanner(pt);
   if (nav.mode === 'preview' && nav.arrived && nav.d >= nav.total) {
@@ -2884,7 +3042,6 @@ function navCamera(lngLat, elev, dt) {
 
 function navLine(step) {
   if (!step) return '';
-  if (window.IndoorI18n) return IndoorI18n.stepLine(step);
   if (step.kind === 'arrive') return 'Arrive at ' + (step.name || state.route.to.name);
   if (step.kind === 'transition') return (step.text || 'Change floors') + (step.level_name ? ' to ' + step.level_name : '');
   return step.text || 'Continue';
@@ -2898,28 +3055,27 @@ function paintNavBanner(pt) {
   let dist = '';
   let next = null;
   if (nav.arrived) {
-    main = { action: 'arrive', line: t('youArrived') + ' ' + tn(state.route.to.name) };
+    main = { action: 'arrive', line: 'You have arrived at ' + state.route.to.name };
   } else if (current.kind === 'transition') {
     main = { action: current.action, line: navLine(current) };
     next = steps[index + 1];
   } else if (nav.d - pt.piece.start < 1 && index === nav.pieces[0].step) {
     main = { action: current.action, line: navLine(current) };
-    dist = window.IndoorI18n ? IndoorI18n.meters(Math.max(1, Math.round(pt.piece.length)) + ' m') : Math.max(1, Math.round(pt.piece.length)) + ' m';
+    dist = Math.max(1, Math.round(pt.piece.length)) + ' m';
     next = steps[index + 1];
   } else {
     const up = steps[index + 1] || steps[steps.length - 1];
     main = { action: up.action, line: navLine(up) };
-    dist = t('inDist') + ' ' + (window.IndoorI18n ? IndoorI18n.meters(Math.max(1, Math.round(pt.piece.start + pt.piece.length - nav.d)) + ' m') : Math.max(1, Math.round(pt.piece.start + pt.piece.length - nav.d)) + ' m');
+    dist = 'In ' + Math.max(1, Math.round(pt.piece.start + pt.piece.length - nav.d)) + ' m';
     next = steps[index + 2];
   }
   let mode = '';
-  if (nav.mode === 'preview') mode = nav.fromPhone ? t('previewAway') : t('preview');
-  else if (nav.lost) mode = t('looking');
-  else if (Number.isFinite(nav.accuracy)) mode = t('gpsAbout') + ' ' + (window.IndoorI18n ? IndoorI18n.meters(Math.round(nav.accuracy) + ' m') : Math.round(nav.accuracy) + ' m') + (nav.accuracy > NAV_MAX_ACC ? (window.IndoorI18n && IndoorI18n.lang() === 'ar' ? '، ' : ', ') + t('gpsWait') : '');
-  if (nav.mode === 'gps' && nav.raw && !nav.onRoute) mode = t('offRoute') + (mode ? ' · ' + mode : '');
-  if (nav.mode === 'gps' && nav.raw) mode += (mode ? ' · ' : '') + t('walked') + ' ' + (window.IndoorI18n ? IndoorI18n.meters(walkedText(nav.walked)) : walkedText(nav.walked));
-  const follow = navLine(next);
-  const nextLine = next && !nav.arrived ? t('then') + ' ' + (window.IndoorI18n && IndoorI18n.lang() === 'ar' ? follow : follow.charAt(0).toLowerCase() + follow.slice(1)) : '';
+  if (nav.mode === 'preview') mode = nav.fromPhone ? 'Preview. Your phone is not in this building.' : 'Preview of the route.';
+  else if (nav.lost) mode = 'Looking for your location…';
+  else if (Number.isFinite(nav.accuracy)) mode = 'GPS accuracy about ' + Math.round(nav.accuracy) + ' m' + (nav.accuracy > NAV_MAX_ACC ? ', waiting for a better fix' : '');
+  if (nav.mode === 'gps' && nav.raw && !nav.onRoute) mode = 'You are off the route' + (mode ? ' · ' + mode : '');
+  if (nav.mode === 'gps' && nav.raw) mode += (mode ? ' · ' : '') + 'Walked ' + walkedText(nav.walked);
+  const nextLine = next && !nav.arrived ? 'Then ' + navLine(next).charAt(0).toLowerCase() + navLine(next).slice(1) : '';
   const key = [main.action, main.line, dist, nextLine, mode, nav.paused].join('|');
   if (key === nav.key) return;
   nav.key = key;
@@ -3012,13 +3168,12 @@ function renderSteps() {
   const rides = state.route.steps.filter((step) => step.kind === 'transition');
   const extra = rides.reduce((sum, step) => sum + (step.mode === 'stair' ? 45 : step.mode === 'elevator' ? 30 : 20), 0);
   const minutes = Math.max(1, Math.round(meters / 1.2 / 60 + extra / 60));
-  const via = rides.length ? rides.map((step) => step.mode === 'stair' ? t('stairs') : step.mode === 'elevator' ? t('elevator') : t('escalator')).filter((mode, index, list) => list.indexOf(mode) === index).join(' ' + t('and') + ' ') : '';
+  const via = rides.length ? rides.map((step) => step.mode === 'stair' ? 'stairs' : step.mode).filter((mode, index, list) => list.indexOf(mode) === index).join(' and ') : 'the same floor';
   const ready = scene3d && scene3d.isDone() && !nav;
-  const about = t('aboutTime').replace('{min}', minutes).replace('{m}', meters);
-  summary.innerHTML = '<div class="route-card"><strong class="route-ready"><span class="step-check">' + checkMark() + '</span>' + esc(t('routeReady')) + '</strong><span>' + esc(about) + '</span><span>' + esc(tn(state.route.from.name)) + ' ' + esc(t('toWord')) + ' ' + esc(tn(state.route.to.name)) + '</span><span>' + esc(via ? t('by') + ' ' + via : t('sameFloor')) + '</span></div>'
+  summary.innerHTML = '<div class="route-card"><strong class="route-ready"><span class="step-check">' + checkMark() + '</span>Route ready</strong><span>About ' + minutes + ' min · ' + meters + ' m</span><span>' + esc(state.route.from.name) + ' to ' + esc(state.route.to.name) + '</span><span>By ' + esc(via) + '</span></div>'
     + '<p class="route-note">' + esc(arrivalNote()) + '</p>'
-    + '<div class="route-actions"><button type="button" class="route-back" id="btn-route-back">' + esc(t('back')) + '</button>'
-    + (ready ? '<button type="button" class="nav-start" id="btn-nav-start"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7L12 2z"/></svg>' + esc(t('go')) + '</button>' : '')
+    + '<div class="route-actions"><button type="button" class="route-back" id="btn-route-back">Back</button>'
+    + (ready ? '<button type="button" class="nav-start" id="btn-nav-start"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7L12 2z"/></svg>Start</button>' : '')
     + '</div>';
   const start = document.getElementById('btn-nav-start');
   if (start) start.addEventListener('click', startNav);
@@ -3033,7 +3188,6 @@ function renderSteps() {
 }
 
 function arrivalNote() {
-  if (window.IndoorI18n && IndoorI18n.lang() === 'ar') return IndoorI18n.arrival(state.route);
   const dest = state.route.to.name || 'the destination';
   const moves = state.route.steps.filter((step) => step.kind !== 'arrive');
   if (!moves.length) return 'Follow the blue line to ' + dest + '.';
@@ -3089,6 +3243,7 @@ function goToStep(index) {
   if (scene3d.isPlaying()) scene3d.pause();
   hideRideCaption();
   state.follow = false;
+  endRouteGlide();
   highlightStep(index);
   if (step.level_id && step.level_id !== state.levelId) {
     state.levelId = step.level_id;
@@ -3101,9 +3256,9 @@ function goToStep(index) {
 }
 
 function updateStatus() {
-  document.getElementById('stat-floor').textContent = tn(floorName(state.levelId));
+  document.getElementById('stat-floor').textContent = floorName(state.levelId);
   const selected = featureById(state.selectedId);
-  document.getElementById('stat-place').textContent = selected ? tn(selected.properties.name) : '—';
+  document.getElementById('stat-place').textContent = selected ? selected.properties.name : '—';
   if (!state.route) {
     document.getElementById('stat-route').textContent = '—';
     return;
@@ -3137,56 +3292,17 @@ function checkMark() {
   return '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.2 16.2 4.8 11.8l-1.4 1.4L9.2 19 20.6 7.6 19.2 6.2z"/></svg>';
 }
 
-function syncLangButton() {
-  const btn = document.getElementById('btn-lang');
-  if (!btn) return;
-  const ar = window.IndoorI18n && IndoorI18n.lang() === 'ar';
-  btn.textContent = ar ? 'EN' : 'ع';
-  btn.setAttribute('aria-label', ar ? 'English' : 'العربية');
-}
-
-function refreshLocale() {
-  if (window.IndoorI18n) IndoorI18n.apply();
-  syncLangButton();
-  document.querySelectorAll('#filter-chips [data-kind], #filter-extra [data-kind]').forEach((btn) => {
-    btn.textContent = t('kind.' + btn.dataset.kind);
-  });
-  if (floors.length) syncFloorUi();
-  renderLayerChoices();
-  renderLegend();
-  renderExplore();
-  renderAsk();
-  renderSteps();
-  refreshLabels();
-  syncPickGuide();
-  updateStatus();
-  const fly = document.getElementById('ask-fly');
-  const flyInput = document.getElementById('ask-fly-input');
-  if (fly && !fly.hidden && flyInput) paintAskFly(flyInput.value);
-  if (state.selectedId) {
-    const feature = featureById(state.selectedId);
-    if (feature && document.getElementById('detail-panel').classList.contains('open')) openDetail(feature);
-  }
-  if (nav) nav.key = '';
-  const clean = document.getElementById('btn-clean');
-  if (clean) {
-    const hidden = document.body.classList.contains('is-clean');
-    clean.setAttribute('aria-label', hidden ? t('showLayers') : t('hideLayers'));
-    clean.title = clean.getAttribute('aria-label');
-  }
-}
-
 function syncDockTitle() {
   const el = document.getElementById('dock-title');
   if (!el) return;
   if (state.dockOpen && state.dock === 'explore') {
     const kind = window.IndoorPlaces && IndoorPlaces.KINDS.find((item) => item.id === state.exploreKind);
-    const name = !kind || kind.id === 'all' ? t('places') : t('kind.' + kind.id);
+    const name = !kind || kind.id === 'all' ? 'Places' : kind.label;
     const listed = document.querySelectorAll('#explore-list .explore-card').length;
     el.textContent = listed ? name + ' · ' + listed : name;
     return;
   }
-  el.textContent = t('dock.' + state.dock) || t('dock.indoor');
+  el.textContent = DOCK_TITLES[state.dock] || 'Indoor';
 }
 
 function openDock(name, keepOpen) {
@@ -3211,13 +3327,83 @@ function openDock(name, keepOpen) {
   });
   syncTools();
   syncGlass();
+  document.body.classList.toggle('is-directing', name === 'directions');
   if (name === 'directions') {
     ask.mode = '';
     ask.back = false;
     ask.step = state.endpoints.from && state.endpoints.to ? 2 : (state.endpoints.from ? 1 : 0);
     syncAsk();
     syncRouteSheet();
+    const current = state.vertical === 'stair' ? 'stair' : state.vertical === 'elevator' ? 'elevator' : 'walk';
+    const modeBtn = document.querySelector('.dir-mode[data-mode="' + current + '"]');
+    if (modeBtn) selectDirMode(modeBtn);
+    placeDirPill(true);
+    requestAnimationFrame(() => placeDirPill(true));
+    replayDirPin();
   }
+}
+
+function placeDirPill(instant) {
+  const pill = document.getElementById('dir-pill');
+  const btn = document.querySelector('.dir-mode.on');
+  if (!pill || !btn) return;
+  if (!btn.offsetWidth) return;
+  if (instant) pill.style.transition = 'none';
+  pill.style.width = btn.offsetWidth + 'px';
+  pill.style.height = btn.offsetHeight + 'px';
+  pill.style.transform = 'translate(' + btn.offsetLeft + 'px,' + btn.offsetTop + 'px)';
+  if (instant) {
+    void pill.offsetWidth;
+    requestAnimationFrame(() => { pill.style.transition = ''; });
+  }
+}
+
+function selectDirMode(btn) {
+  document.querySelectorAll('.dir-mode').forEach((item) => {
+    const on = item === btn;
+    item.classList.toggle('on', on);
+    item.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  const icon = btn.querySelector('svg');
+  if (icon) {
+    icon.style.animation = 'none';
+    void icon.offsetWidth;
+    icon.style.animation = '';
+  }
+  placeDirPill(false);
+}
+
+function setVertical(vertical, fromMode) {
+  if (!vertical) return;
+  const changed = state.vertical !== vertical;
+  state.vertical = vertical;
+  document.querySelectorAll('[data-vertical]').forEach((item) => {
+    const on = item.dataset.vertical === vertical;
+    item.classList.toggle('active', on);
+    item.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  if (!fromMode) {
+    const mode = vertical === 'stair' ? 'stair' : vertical === 'elevator' ? 'elevator' : 'walk';
+    const btn = document.querySelector('.dir-mode[data-mode="' + mode + '"]');
+    if (btn) selectDirMode(btn);
+  }
+  if (changed && state.endpoints.from && state.endpoints.to) calculate();
+}
+
+function flashDirFields() {
+  document.querySelectorAll('#dir-top .field-input').forEach((field) => {
+    field.classList.remove('is-filled');
+    void field.offsetWidth;
+    field.classList.add('is-filled');
+  });
+}
+
+function replayDirPin() {
+  const pin = document.querySelector('.dir-pin');
+  if (!pin) return;
+  pin.style.animation = 'none';
+  void pin.offsetWidth;
+  pin.style.animation = '';
 }
 
 function clearSheetSize(dock) {
@@ -3228,6 +3414,7 @@ function clearSheetSize(dock) {
 
 function closeDock() {
   state.dockOpen = false;
+  document.body.classList.remove('is-directing');
   setTool(null);
   const dock = document.getElementById('dock');
   clearSheetSize(dock);
@@ -3332,6 +3519,7 @@ function set3d(on) {
   btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   setTiltControls(on);
   if (scene3d) scene3d.setSolid(on);
+  syncPlanLayer();
   if (on) {
     showExtrudedBuildings();
     settleThenPitch(token);
@@ -3482,15 +3670,15 @@ function onSearch(query) {
     return blob.includes(q);
   }).slice(0, 8);
   if (!hits.length) {
-    host.innerHTML = '<div class="muted" style="padding:8px;">' + t('noMatch') + '</div>';
+    host.innerHTML = '<div class="muted" style="padding:8px;">No places match.</div>';
     return;
   }
   hits.forEach((f) => {
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'flyout-item';
-    const where = tn(f.properties.building || t('building')) + ' · ' + tn(f.properties.level_name || '');
-    row.innerHTML = '<span>' + esc(tn(f.properties.name)) + '</span><span class="hit-kind">' + esc(where) + '</span>';
+    const where = (f.properties.building || 'Building') + ' · ' + (f.properties.level_name || '');
+    row.innerHTML = '<span>' + esc(f.properties.name) + '</span><span class="hit-kind">' + esc(where) + '</span>';
     row.addEventListener('click', () => {
       selectFeature(f, true);
       IndoorUI.closeFlyouts();
@@ -3503,6 +3691,7 @@ function setHover(id) {
   if (String(id) === String(state.hoverId)) return;
   state.hoverId = id;
   if (scene3d) scene3d.setUnitTone(state.selectedId, state.hoverId);
+  syncPlanLayer();
 }
 
 function bindMap() {
@@ -3566,6 +3755,7 @@ function bindMap() {
 
   map.on('dragstart', () => {
     if (scene3d.isPlaying()) state.follow = false;
+    endRouteGlide();
     pauseNavCamera();
   });
   ['zoomstart', 'rotatestart', 'pitchstart'].forEach((name) => {
@@ -3646,11 +3836,6 @@ function bindChrome() {
     const next = document.documentElement.getAttribute('data-theme') === 'glass' ? 'light' : 'glass';
     IndoorUI.applyTheme(next);
   });
-  document.getElementById('btn-lang').addEventListener('click', () => {
-    if (window.IndoorI18n) IndoorI18n.setLang(IndoorI18n.lang() === 'ar' ? 'en' : 'ar');
-  });
-  if (window.IndoorI18n) IndoorI18n.onChange(refreshLocale);
-  syncLangButton();
   document.getElementById('btn-close-detail').addEventListener('click', closeDetail);
   document.getElementById('btn-my-car').addEventListener('click', routeToCar);
   document.getElementById('btn-forget-car').addEventListener('click', forgetCar);
@@ -3671,6 +3856,7 @@ function bindChrome() {
     if (extra) extra.hidden = true;
     if (more) more.setAttribute('aria-expanded', 'false');
     renderExplore();
+    frameHighlight();
   });
   document.getElementById('filter-more').addEventListener('click', () => {
     const extra = document.getElementById('filter-extra');
@@ -3680,19 +3866,6 @@ function bindChrome() {
     more.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
   document.getElementById('filter-count').addEventListener('click', () => openDock('explore', true));
-  document.getElementById('filter-toggle').addEventListener('click', () => {
-    const bar = document.getElementById('filter-bar');
-    const toggle = document.getElementById('filter-toggle');
-    const collapsed = !bar.classList.contains('is-collapsed');
-    bar.classList.toggle('is-collapsed', collapsed);
-    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    toggle.setAttribute('aria-label', collapsed ? 'Show filters' : 'Hide filters');
-    if (collapsed) {
-      const extra = document.getElementById('filter-extra');
-      if (extra) extra.hidden = true;
-      document.getElementById('filter-more').setAttribute('aria-expanded', 'false');
-    }
-  });
   document.addEventListener('click', (event) => {
     const wrap = document.getElementById('filter-extra-wrap');
     const extra = document.getElementById('filter-extra');
@@ -3717,13 +3890,7 @@ function bindChrome() {
   bindAsk();
   document.querySelectorAll('[data-vertical]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      state.vertical = btn.dataset.vertical;
-      document.querySelectorAll('[data-vertical]').forEach((item) => {
-        const on = item === btn;
-        item.classList.toggle('active', on);
-        item.setAttribute('aria-pressed', on ? 'true' : 'false');
-      });
-      if (state.endpoints.from && state.endpoints.to) calculate();
+      setVertical(btn.dataset.vertical);
     });
   });
   const clearHere = document.getElementById('btn-clear-here');
@@ -3740,7 +3907,22 @@ function bindChrome() {
     document.getElementById('to-search').blur();
     setTool(wantedPickTool());
   });
-  document.getElementById('btn-swap').addEventListener('click', () => {
+  document.getElementById('btn-dir-close').addEventListener('click', () => closeDock());
+  document.querySelectorAll('.dir-mode').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      selectDirMode(btn);
+      setVertical(btn.dataset.vertical, true);
+    });
+  });
+  window.addEventListener('resize', () => {
+    if (document.body.classList.contains('is-directing')) placeDirPill(true);
+  });
+  document.getElementById('dir-top').addEventListener('animationend', (event) => {
+    if (event.target.id === 'dir-top' && document.body.classList.contains('is-directing')) placeDirPill(true);
+  });
+  document.getElementById('btn-swap').addEventListener('click', (event) => {
+    event.currentTarget.classList.toggle('is-spin');
+    flashDirFields();
     const from = state.endpoints.from;
     state.endpoints.from = state.endpoints.to;
     state.endpoints.to = from;
@@ -3755,14 +3937,15 @@ function bindChrome() {
   document.getElementById('btn-clean').addEventListener('click', (event) => {
     const on = document.body.classList.toggle('is-clean');
     if (scene3d) scene3d.setPlanVisible(!on);
+    syncPlanLayer();
     const btn = event.currentTarget;
     btn.setAttribute('aria-pressed', String(on));
-    btn.setAttribute('aria-label', on ? t('showLayers') : t('hideLayers'));
+    btn.setAttribute('aria-label', on ? 'Show map layers' : 'Hide map layers');
     btn.title = btn.getAttribute('aria-label');
   });
   document.getElementById('btn-replay').addEventListener('click', () => {
     if (!state.route) {
-      IndoorUI.toast(t('toastNeedRoute'));
+      IndoorUI.toast('Get directions first.');
       return;
     }
     startPlayback();
@@ -4133,10 +4316,9 @@ function startMap(style) {
       hideRideCaption();
       if (!state.route) return;
       renderSteps();
-      if (!info.skipped) {
-        frameRouteExtent();
-        IndoorUI.toast(t('arrived') + ' ' + tn(state.route.to.name));
-      }
+      state.follow = false;
+      endRouteGlide();
+      if (!info.skipped) IndoorUI.toast('Arrived at ' + state.route.to.name);
     }
   });
 
